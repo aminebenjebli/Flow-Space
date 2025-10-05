@@ -1,2 +1,0 @@
-# This file ensures the components directory is tracked by Git
-# Git ignores empty directories, so this .gitkeep file maintains the folder structure
