@@ -67,6 +67,19 @@ export const verifyEmailSchema = z.object({
   token: z.string().min(1, "Verification token is required"),
 });
 
+export const verifyOtpSchema = z.object({
+  email: z
+    .string()
+    .min(1, "Email is required")
+    .email({ message: "Please enter a valid email address" }),
+  otpCode: z
+    .string()
+    .min(4, "OTP code must be 4 digits")
+    .max(4, "OTP code must be 4 digits")
+    .regex(/^\d{4}$/, "OTP code must be 4 digits"),
+  type: z.enum(["verify", "reset"]).optional(),
+});
+
 // Task schemas
 export const createTaskSchema = z.object({
   title: z
@@ -147,6 +160,7 @@ export type SignupFormData = z.infer<typeof signupSchema>;
 export type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
 export type VerifyEmailFormData = z.infer<typeof verifyEmailSchema>;
+export type VerifyOtpFormData = z.infer<typeof verifyOtpSchema>;
 export type CreateTaskFormData = z.infer<typeof createTaskSchema>;
 export type UpdateTaskFormData = z.infer<typeof updateTaskSchema>;
 export type CreateProjectFormData = z.infer<typeof createProjectSchema>;

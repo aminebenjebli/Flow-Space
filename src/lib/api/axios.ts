@@ -145,14 +145,14 @@ export const api = {
     login: (credentials: { email: string; password: string }) =>
       api.post("/auth/sign-in", credentials),
 
-    signup: (userData: {
-      email: string;
-      password: string;
-      firstName: string;
-      lastName: string;
-    }) => api.post("/user/signup", userData),
+    signup: (userData: { email: string; password: string; name: string }) =>
+      api.post("/user", userData),
 
-    verify: (token: string) => api.post("/auth/verify-otp", { token }),
+    verifyOtp: (data: {
+      email: string;
+      otpCode: string;
+      type?: "verify" | "reset";
+    }) => api.post("/auth/verify-otp", data),
 
     forgotPassword: (email: string) => api.post("/auth/forgot", { email }),
 
