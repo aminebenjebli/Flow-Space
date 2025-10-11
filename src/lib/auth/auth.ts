@@ -86,7 +86,7 @@ const authOptions: NextAuthOptions = {
             id: user.id,
             email: user.email,
             firstName: user.firstName,
-            lastName: user.lastName,
+            //lastName: user.lastName,
             role: user.role,
             emailVerified: Boolean(user.emailVerified),
           },
@@ -108,10 +108,10 @@ const authOptions: NextAuthOptions = {
         id: token.user?.id || "",
         email: token.user?.email || "",
         firstName: token.user?.firstName || "",
-        lastName: token.user?.lastName || "",
+        //lastName: token.user?.lastName || "",
         role: token.user?.role,
         emailVerified: token.user?.emailVerified,
-        name: `${token.user?.firstName} ${token.user?.lastName}`,
+        name: `${token.user?.firstName}`,
         image: null,
       };
       return session;

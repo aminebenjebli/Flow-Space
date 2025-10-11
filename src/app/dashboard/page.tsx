@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useProfile } from "@/contexts/profile-context";
 import {
   CheckCircle,
   Clock,
@@ -13,16 +14,24 @@ import {
   Plus,
   Bell,
   Search,
+  User,
 } from "lucide-react";
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const { profile, fetchProfile } = useProfile();
 
   useEffect(() => {
     if (status === "loading") return; // Still loading
     if (!session) router.push("/login");
   }, [session, status, router]);
+
+  useEffect(() => {
+    if (status === "authenticated" && session?.user?.id) {
+      fetchProfile(session.user.id);
+    }
+  }, [status, session?.user?.id, fetchProfile]);
 
   if (status === "loading") {
     return (
@@ -104,14 +113,21 @@ export default function DashboardPage() {
                 onClick={() => router.push("/profile")}
                 className="flex items-center space-x-2 hover:opacity-80 transition-opacity cursor-pointer"
               >
-                <div className="w-8 h-8 flow-gradient-secondary rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm font-medium">
-                    {session.user?.firstName?.[0]}
-                    {session.user?.lastName?.[0]}
-                  </span>
+                <div className="w-8 h-8 rounded-full overflow-hidden bg-muted flex items-center justify-center">
+                  {profile?.profilePicture ? (
+                    <img
+                      src={profile.profilePicture}
+                      alt="Profile"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flow-gradient-secondary rounded-full flex items-center justify-center">
+                      <User className="h-4 w-4 text-white" />
+                    </div>
+                  )}
                 </div>
                 <span className="font-medium text-foreground">
-                  {session.user?.firstName} {session.user?.lastName}
+                  {profile?.name || session.user?.firstName}
                 </span>
               </button>
             </div>
