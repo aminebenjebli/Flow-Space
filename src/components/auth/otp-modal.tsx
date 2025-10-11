@@ -7,10 +7,10 @@ import { api } from "@/lib/api/axios";
 import { toast } from "react-hot-toast";
 
 interface OtpModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  email: string;
-  onVerificationSuccess: () => void;
+  readonly isOpen: boolean;
+  readonly onClose: () => void;
+  readonly email: string;
+  readonly onVerificationSuccess: () => void;
 }
 
 export function OtpModal({

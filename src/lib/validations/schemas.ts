@@ -1,11 +1,14 @@
 import { z } from "zod";
 
+// Email regex pattern
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 // Auth schemas
 export const loginSchema = z.object({
   email: z
     .string()
     .min(1, "Email is required")
-    .email({ message: "Please enter a valid email address" }),
+    .regex(emailRegex, "Please enter a valid email address"),
   password: z
     .string()
     .min(1, "Password is required")
@@ -22,7 +25,7 @@ export const signupSchema = z
     email: z
       .string()
       .min(1, "Email is required")
-      .email({ message: "Please enter a valid email address" }),
+      .regex(emailRegex, "Please enter a valid email address"),
     password: z
       .string()
       .min(1, "Password is required")
@@ -42,7 +45,7 @@ export const forgotPasswordSchema = z.object({
   email: z
     .string()
     .min(1, "Email is required")
-    .email({ message: "Please enter a valid email address" }),
+    .regex(emailRegex, "Please enter a valid email address"),
 });
 
 export const resetPasswordSchema = z
@@ -71,7 +74,7 @@ export const verifyOtpSchema = z.object({
   email: z
     .string()
     .min(1, "Email is required")
-    .email({ message: "Please enter a valid email address" }),
+    .regex(emailRegex, "Please enter a valid email address"),
   otpCode: z
     .string()
     .min(4, "OTP code must be 4 digits")
@@ -133,8 +136,9 @@ export const updateProfileSchema = z.object({
     .optional(),
   email: z
     .string()
-    .email({ message: "Please enter a valid email address" })
+    .regex(emailRegex, "Please enter a valid email address")
     .optional(),
+  bio: z.string().max(500, "Bio must be less than 500 characters").optional(),
 });
 
 export const changePasswordSchema = z

@@ -154,6 +154,9 @@ export const api = {
       type?: "verify" | "reset";
     }) => api.post("/auth/verify-otp", data),
 
+    changePassword: (data: { currentPassword: string; newPassword: string }) =>
+      api.patch("/auth/change-password", data),
+
     forgotPassword: (email: string) => api.post("/auth/forgot", { email }),
 
     resetPassword: (token: string, password: string) =>
@@ -172,10 +175,31 @@ export const api = {
     delete: (id: string) => api.delete(`/tasks/${id}`),
   },
 
-  // Future user methods
+  // User methods
   users: {
-    getProfile: () => api.get("/user/profile"),
-    updateProfile: (data: any) => api.put("/user/profile", data),
+    getProfile: (userId: string) => api.get(`/user/${userId}`),
+    updateProfile: (
+      userId: string,
+      data: { name?: string; email?: string; bio?: string }
+    ) => api.patch(`/user/${userId}`, data),
+    changePassword: (
+      userId: string,
+      data: {
+        currentPassword: string;
+        newPassword: string;
+        confirmPassword: string;
+      }
+    ) => api.patch(`/user/${userId}/change-password`, data),
+    uploadProfileImage: (userId: string, formData: FormData) =>
+      axiosInstance
+        .post(`/user/${userId}/profile-image`, formData, {
+          headers: {
+            "Content-Type": "multipart/form-data", //or undefined
+          },
+        })
+        .then((res) => res.data),
+    removeProfileImage: (userId: string) =>
+      api.delete(`/user/${userId}/profile-image`),
   },
 };
 

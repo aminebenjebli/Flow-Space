@@ -100,7 +100,10 @@ export default function DashboardPage() {
                   3
                 </span>
               </button>
-              <div className="flex items-center space-x-2">
+              <button
+                onClick={() => router.push("/profile")}
+                className="flex items-center space-x-2 hover:opacity-80 transition-opacity cursor-pointer"
+              >
                 <div className="w-8 h-8 flow-gradient-secondary rounded-full flex items-center justify-center">
                   <span className="text-white text-sm font-medium">
                     {session.user?.firstName?.[0]}
@@ -110,7 +113,7 @@ export default function DashboardPage() {
                 <span className="font-medium text-foreground">
                   {session.user?.firstName} {session.user?.lastName}
                 </span>
-              </div>
+              </button>
             </div>
           </div>
         </div>
