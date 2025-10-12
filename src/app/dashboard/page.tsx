@@ -1,37 +1,45 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useProfile } from "@/contexts/profile-context";
+import { useTask, TaskProvider } from "@/contexts/task-context";
+import { api } from "@/lib/api/axios";
+import { formatDistanceToNow } from "date-fns";
+import { toast } from "react-hot-toast";
 import {
   CheckCircle,
   Clock,
-  Users,
   TrendingUp,
   Plus,
   Bell,
   Search,
   User,
+  BarChart3,
+  LogOut,
+  ChevronDown,
+  Settings,
 } from "lucide-react";
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const { profile, fetchProfile } = useProfile();
 
   useEffect(() => {
     if (status === "loading") return; // Still loading
     if (!session) router.push("/login");
   }, [session, status, router]);
-
-  useEffect(() => {
-    if (status === "authenticated" && session?.user?.id) {
-      fetchProfile(session.user.id);
-    }
-  }, [status, session?.user?.id, fetchProfile]);
 
   if (status === "loading") {
     return (
@@ -45,38 +53,94 @@ export default function DashboardPage() {
     return null;
   }
 
-  const stats = [
+  return (
+    <TaskProvider>
+      <DashboardContent session={session} />
+    </TaskProvider>
+  );
+}
+
+function DashboardContent({ session }: { readonly session: any }) {
+  const router = useRouter();
+  const { profile, fetchProfile } = useProfile();
+  const { tasks, stats: taskStats, fetchTasks, fetchStats } = useTask();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  useEffect(() => {
+    if (session?.user?.id) {
+      fetchProfile(session.user.id);
+      fetchTasks();
+      fetchStats();
+    }
+  }, [session?.user?.id, fetchProfile, fetchTasks, fetchStats]);
+
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true);
+
+      // Call backend logout API to blacklist the refresh token
+      if (session?.refreshToken) {
+        await api.auth.logout(session.refreshToken);
+      }
+
+      // Clear local session using NextAuth
+      await signOut({
+        callbackUrl: "/login",
+        redirect: true,
+      });
+
+      toast.success("Logged out successfully");
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast.error("Error during logout, but session will be cleared");
+
+      // Even if backend logout fails, clear the local session
+      await signOut({
+        callbackUrl: "/login",
+        redirect: true,
+      });
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
+
+  // Get recent tasks (last 5)
+  const recentTasks = tasks.slice(0, 5);
+
+  const statsData = [
     {
       title: "Total Tasks",
-      value: "24",
+      value: taskStats?.total?.toString() || "0",
       change: "+12%",
       icon: CheckCircle,
       color: "text-green-600",
-      bg: "bg-green-100",
+      bg: "bg-green-100 dark:bg-green-900/20",
     },
     {
       title: "In Progress",
-      value: "8",
+      value: taskStats?.inProgress?.toString() || "0",
       change: "+5%",
       icon: Clock,
       color: "text-blue-600",
-      bg: "bg-blue-100",
+      bg: "bg-blue-100 dark:bg-blue-900/20",
     },
     {
-      title: "Team Members",
-      value: "12",
+      title: "Completed",
+      value: taskStats?.done?.toString() || "0",
       change: "+2",
-      icon: Users,
+      icon: TrendingUp,
       color: "text-purple-600",
-      bg: "bg-purple-100",
+      bg: "bg-purple-100 dark:bg-purple-900/20",
     },
     {
       title: "Productivity",
-      value: "89%",
+      value: taskStats?.total
+        ? `${Math.round((taskStats.done / taskStats.total) * 100)}%`
+        : "0%",
       change: "+7%",
-      icon: TrendingUp,
+      icon: BarChart3,
       color: "text-orange-600",
-      bg: "bg-orange-100",
+      bg: "bg-orange-100 dark:bg-orange-900/20",
     },
   ];
 
@@ -91,6 +155,34 @@ export default function DashboardPage() {
                 <span className="text-white font-bold text-lg">F</span>
               </div>
               <h1 className="text-2xl font-bold text-foreground">FlowSpace</h1>
+
+              {/* Enhanced Navigation */}
+              <nav className="hidden md:flex items-center space-x-1 ml-8">
+                <button
+                  onClick={() => router.push("/dashboard")}
+                  className="px-4 py-2 text-sm font-medium text-primary bg-primary/10 rounded-lg hover:bg-primary/20 transition-all duration-200 border border-primary/20"
+                >
+                  Dashboard
+                </button>
+                <button
+                  onClick={() => router.push("/tasks")}
+                  className="px-4 py-2 text-sm font-medium text-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200"
+                >
+                  Tasks
+                </button>
+                <button
+                  onClick={() => router.push("/projects")}
+                  className="px-4 py-2 text-sm font-medium text-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200"
+                >
+                  Projects
+                </button>
+                <button
+                  onClick={() => router.push("/analytics")}
+                  className="px-4 py-2 text-sm font-medium text-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200"
+                >
+                  Analytics
+                </button>
+              </nav>
             </div>
 
             <div className="flex items-center space-x-4">
@@ -109,27 +201,65 @@ export default function DashboardPage() {
                   3
                 </span>
               </button>
-              <button
-                onClick={() => router.push("/profile")}
-                className="flex items-center space-x-2 hover:opacity-80 transition-opacity cursor-pointer"
-              >
-                <div className="w-8 h-8 rounded-full overflow-hidden bg-muted flex items-center justify-center">
-                  {profile?.profilePicture ? (
-                    <img
-                      src={profile.profilePicture}
-                      alt="Profile"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flow-gradient-secondary rounded-full flex items-center justify-center">
-                      <User className="h-4 w-4 text-white" />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center space-x-2 hover:opacity-80 transition-opacity cursor-pointer">
+                    <div className="w-8 h-8 rounded-full overflow-hidden bg-muted flex items-center justify-center">
+                      {profile?.profilePicture ? (
+                        <img
+                          src={profile.profilePicture}
+                          alt="Profile"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flow-gradient-secondary rounded-full flex items-center justify-center">
+                          <User className="h-4 w-4 text-white" />
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-                <span className="font-medium text-foreground">
-                  {profile?.name || session.user?.firstName}
-                </span>
-              </button>
+                    <span className="font-medium text-foreground">
+                      {profile?.name || session.user?.firstName}
+                    </span>
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">
+                        {profile?.name || session.user?.firstName}
+                      </p>
+                      <p className="text-xs leading-none text-muted-foreground">
+                        {session.user?.email}
+                      </p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => router.push("/profile")}
+                    className="cursor-pointer"
+                  >
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Profile</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => router.push("/settings")}
+                    className="cursor-pointer"
+                  >
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Settings</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={handleLogout}
+                    className="cursor-pointer text-destructive focus:text-destructive"
+                    disabled={isLoggingOut}
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>{isLoggingOut ? "Logging out..." : "Log out"}</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>
@@ -149,12 +279,12 @@ export default function DashboardPage() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {stats.map((stat) => {
+          {statsData.map((stat) => {
             const Icon = stat.icon;
             return (
               <div
                 key={stat.title}
-                className="bg-card rounded-xl p-6 shadow-sm border border-border hover:shadow-md transition-shadow"
+                className="flow-card p-6 hover:shadow-md transition-shadow"
               >
                 <div className="flex items-center justify-between mb-4">
                   <div
@@ -180,75 +310,86 @@ export default function DashboardPage() {
         {/* Quick Actions */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Recent Tasks */}
-          <div className="bg-card rounded-xl p-6 shadow-sm border border-border">
+          <div className="flow-card p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-foreground">
                 Recent Tasks
               </h3>
-              <Button size="sm" className="bg-primary hover:bg-primary/90">
+              <Button
+                size="sm"
+                className="bg-primary hover:bg-primary/90"
+                onClick={() => router.push("/tasks")}
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Task
               </Button>
             </div>
             <div className="space-y-4">
-              {[
-                {
-                  id: 1,
-                  title: "Design new landing page",
-                  status: "In Progress",
-                  priority: "High",
-                },
-                {
-                  id: 2,
-                  title: "Fix authentication bug",
-                  status: "To Do",
-                  priority: "Medium",
-                },
-                {
-                  id: 3,
-                  title: "Update documentation",
-                  status: "Completed",
-                  priority: "Low",
-                },
-                {
-                  id: 4,
-                  title: "Review code changes",
-                  status: "In Progress",
-                  priority: "High",
-                },
-              ].map((task) => {
-                const getStatusColor = (status: string) => {
-                  if (status === "Completed") return "bg-green-500";
-                  if (status === "In Progress") return "bg-blue-500";
-                  return "bg-gray-400";
-                };
+              {recentTasks.length > 0 ? (
+                recentTasks.map((task) => {
+                  const getStatusColor = (status: string) => {
+                    if (status === "DONE") return "bg-green-500";
+                    if (status === "IN_PROGRESS") return "bg-blue-500";
+                    if (status === "TODO") return "bg-gray-400";
+                    return "bg-red-500";
+                  };
 
-                return (
-                  <div
-                    key={task.id}
-                    className="flex items-center justify-between p-3 bg-secondary/50 dark:bg-secondary rounded-lg hover:bg-secondary/70 dark:hover:bg-secondary/80 transition-colors"
-                  >
-                    <div>
-                      <h4 className="font-medium text-foreground">
-                        {task.title}
-                      </h4>
-                      <p className="text-sm text-muted-foreground">
-                        {task.status} • {task.priority} Priority
-                      </p>
-                    </div>
-                    <div
-                      className={`w-3 h-3 rounded-full ${getStatusColor(
-                        task.status
-                      )}`}
-                    ></div>
-                  </div>
-                );
-              })}
+                  const getStatusText = (status: string) => {
+                    if (status === "DONE") return "Completed";
+                    if (status === "IN_PROGRESS") return "In Progress";
+                    if (status === "TODO") return "To Do";
+                    return "Cancelled";
+                  };
+
+                  const getPriorityText = (priority: string) => {
+                    return priority.charAt(0) + priority.slice(1).toLowerCase();
+                  };
+
+                  return (
+                    <button
+                      key={task.id}
+                      className="w-full flex items-center justify-between p-3 bg-secondary/50 dark:bg-secondary/20 rounded-lg hover:bg-secondary/70 dark:hover:bg-secondary/30 transition-colors text-left"
+                      onClick={() => router.push("/tasks")}
+                    >
+                      <div className="flex-1">
+                        <h4 className="font-medium text-foreground line-clamp-1">
+                          {task.title}
+                        </h4>
+                        <p className="text-sm text-muted-foreground">
+                          {getStatusText(task.status)} •{" "}
+                          {getPriorityText(task.priority)} Priority
+                          {task.dueDate && (
+                            <span className="ml-1">
+                              • Due{" "}
+                              {formatDistanceToNow(new Date(task.dueDate), {
+                                addSuffix: true,
+                              })}
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <div
+                        className={`w-3 h-3 rounded-full ${getStatusColor(
+                          task.status
+                        )}`}
+                      ></div>
+                    </button>
+                  );
+                })
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No tasks yet</p>
+                  <p className="text-xs mt-1">
+                    Create your first task to get started
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Team Activity */}
-          <div className="bg-card rounded-xl p-6 shadow-sm border border-border">
+          <div className="flow-card p-6">
             <h3 className="text-lg font-semibold text-foreground mb-6">
               Team Activity
             </h3>

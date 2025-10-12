@@ -5,6 +5,7 @@ import axios, {
   AxiosError,
 } from "axios";
 import { getSession } from "next-auth/react";
+import { TaskStatus } from "@/types/index";
 
 // Extend Axios types to include _retry
 declare module "axios" {
@@ -36,6 +37,8 @@ const axiosInstance: AxiosInstance = axios.create({
   timeout: 10000,
   headers: {
     "Content-Type": "application/json",
+    "Cache-Control": "no-cache",
+    Pragma: "no-cache",
   },
 });
 
@@ -60,6 +63,13 @@ axiosInstance.interceptors.request.use(
 // Response interceptor for token refresh
 axiosInstance.interceptors.response.use(
   (response: AxiosResponse) => {
+    // Handle 304 Not Modified responses
+    if (response.status === 304) {
+      console.log("Received 304 Not Modified, using cached data");
+      // For 304 responses, we should use cached data
+      // But since we don't have cache here, we'll treat it as an empty response
+      // and let the frontend handle it gracefully
+    }
     return response;
   },
   async (error: AxiosError) => {
@@ -164,15 +174,73 @@ export const api = {
 
     refresh: (refreshToken: string) =>
       api.post("/auth/refresh", { refreshToken }),
+
+    logout: (refreshToken?: string) =>
+      api.post("/auth/logout", { refreshToken }),
   },
 
-  // Future task methods
+  // Task management methods
   tasks: {
-    getAll: () => api.get("/tasks"),
+    // Get all tasks with optional filtering and pagination
+    getAll: (params?: {
+      status?: string;
+      priority?: string;
+      search?: string;
+      dueFrom?: string;
+      dueUntil?: string;
+      page?: number;
+      limit?: number;
+      sortBy?: string;
+      sortOrder?: "asc" | "desc";
+    }) => {
+      const queryParams = new URLSearchParams();
+      if (params) {
+        Object.entries(params).forEach(([key, value]) => {
+          if (value !== undefined && value !== null) {
+            queryParams.append(key, value.toString());
+          }
+        });
+      }
+      const queryString = queryParams.toString();
+      const url = queryString ? `/tasks?${queryString}` : "/tasks";
+      return api.get(url);
+    },
+
+    // Get task by ID
     getById: (id: string) => api.get(`/tasks/${id}`),
-    create: (task: any) => api.post("/tasks", task),
-    update: (id: string, task: any) => api.put(`/tasks/${id}`, task),
+
+    // Create new task
+    create: (task: {
+      title: string;
+      description?: string;
+      status?: string;
+      priority?: string;
+      dueDate?: string;
+    }) => api.post("/tasks", task),
+
+    // Update existing task
+    update: (
+      id: string,
+      task: {
+        title?: string;
+        description?: string;
+        status?: string;
+        priority?: string;
+        dueDate?: string;
+      }
+    ) => api.patch(`/tasks/${id}`, task),
+
+    // Delete task
     delete: (id: string) => api.delete(`/tasks/${id}`),
+
+    // Get task statistics
+    getStats: () => api.get("/tasks/stats"),
+
+    // Bulk update task status
+    bulkUpdateStatus: (data: { taskIds: string[]; status: TaskStatus }) => {
+      console.log("API: Sending bulk update request:", data);
+      return api.patch("/tasks/bulk/status", data);
+    },
   },
 
   // User methods

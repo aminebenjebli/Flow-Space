@@ -6,6 +6,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { ThemeProvider } from "next-themes";
 import { useState } from "react";
 import { ProfileProvider } from "@/contexts/profile-context";
+import { TaskProvider } from "@/contexts/task-context";
 
 interface ProvidersProps {
   readonly children: React.ReactNode;
@@ -34,8 +35,10 @@ export function Providers({ children }: ProvidersProps) {
           storageKey="flowspace-theme"
         >
           <ProfileProvider>
-            {children}
-            <ReactQueryDevtools initialIsOpen={false} />
+            <TaskProvider>
+              {children}
+              <ReactQueryDevtools initialIsOpen={false} />
+            </TaskProvider>
           </ProfileProvider>
         </ThemeProvider>
       </QueryClientProvider>

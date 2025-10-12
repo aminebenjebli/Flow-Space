@@ -74,21 +74,92 @@ export interface AuthResponse {
   expiresIn: number;
 }
 
+// Task Management Types
+export enum TaskStatus {
+  TODO = "TODO",
+  IN_PROGRESS = "IN_PROGRESS",
+  DONE = "DONE",
+  CANCELLED = "CANCELLED",
+}
+
+export enum TaskPriority {
+  LOW = "LOW",
+  MEDIUM = "MEDIUM",
+  HIGH = "HIGH",
+  URGENT = "URGENT",
+}
+
+export interface TaskUser {
+  id: string;
+  name: string;
+  email: string;
+}
+
 export interface Task {
   id: string;
   title: string;
   description?: string;
-  status: "todo" | "in-progress" | "completed";
-  priority: "low" | "medium" | "high";
-  assigneeId?: string;
-  assignee?: User;
-  creatorId: string;
-  creator: User;
+  status: TaskStatus;
+  priority: TaskPriority;
   dueDate?: string;
-  tags?: string[];
-  projectId?: string;
   createdAt: string;
   updatedAt: string;
+  userId: string;
+  user: TaskUser;
+}
+
+export interface CreateTaskDto {
+  title: string;
+  description?: string;
+  status?: TaskStatus;
+  priority?: TaskPriority;
+  dueDate?: string;
+}
+
+export interface UpdateTaskDto {
+  title?: string;
+  description?: string;
+  status?: TaskStatus;
+  priority?: TaskPriority;
+  dueDate?: string;
+}
+
+export interface QueryTaskDto {
+  status?: TaskStatus;
+  priority?: TaskPriority;
+  search?: string;
+  dueFrom?: string;
+  dueUntil?: string;
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+}
+
+export interface BulkUpdateStatusDto {
+  taskIds: string[];
+  status: TaskStatus;
+}
+
+export interface TaskListResponse {
+  tasks: Task[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface TaskStatsResponse {
+  total: number;
+  todo: number;
+  inProgress: number;
+  done: number;
+  cancelled: number;
+  overdue: number;
+}
+
+export interface BulkUpdateResponse {
+  count: number;
 }
 
 export interface Project {
@@ -101,20 +172,6 @@ export interface Project {
   tasks: Task[];
   createdAt: string;
   updatedAt: string;
-}
-
-export interface CreateTaskRequest {
-  title: string;
-  description?: string;
-  priority: Task["priority"];
-  assigneeId?: string;
-  dueDate?: string;
-  tags?: string[];
-  projectId?: string;
-}
-
-export interface UpdateTaskRequest extends Partial<CreateTaskRequest> {
-  status?: Task["status"];
 }
 
 // API Response types
