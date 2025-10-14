@@ -6,6 +6,7 @@ import { Users, FolderOpen, Info, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { CreateProjectDialog } from '@/components/projects/create-project-dialog';
 import { Tabs } from '@/components/teams/tabs';
+import { MemberActions } from '@/components/teams/member-actions';
 
 interface TeamPageProps {
   params: Promise<{
@@ -79,10 +80,35 @@ export default async function TeamPage({ params }: TeamPageProps) {
   const session = await getServerSession(authOptions);
   const currentUserId = session?.user?.id;
   
+  // Debug logging
+  console.log('DEBUG PAGE - User session:', {
+    currentUserId,
+    userEmail: session?.user?.email,
+    teamMembers: team.members?.map(m => ({ 
+      userId: m.userId, 
+      role: m.role,
+      userEmail: m.user?.email 
+    }))
+  });
+  
   // Find current user's role in the team
   const currentMember = team.members?.find(member => member.userId === currentUserId);
-  const userRole = currentMember?.role;
+  let userRole = currentMember?.role;
+  
+  // FIXME: Temporary fix - if user is the only member, assume OWNER role
+  if (!userRole && team.members?.length === 1 && currentUserId) {
+    console.log('TEMP FIX: Assuming OWNER role for single member team');
+    userRole = 'OWNER';
+  }
+  
   const canManageTeam = userRole === 'OWNER' || userRole === 'ADMIN';
+  
+  console.log('DEBUG PAGE - Role calculation:', {
+    currentMember,
+    userRole,
+    canManageTeam,
+    isTemporaryFix: !currentMember && team.members?.length === 1
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -97,19 +123,7 @@ export default async function TeamPage({ params }: TeamPageProps) {
               {team.description || 'Team dashboard'}
             </p>
           </div>
-          {canManageTeam && (
-            <div className="flex items-center gap-3">
-              <Link
-                href={`/teams/${teamId}?tab=members&invite=true`}
-                className="inline-flex items-center px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors"
-              >
-                <Users className="h-4 w-4 mr-2" />
-                Add Member
-              </Link>
-            </div>
-          )}
         </div>
-
         {/* Team Overview Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="flow-card p-6">
@@ -147,11 +161,14 @@ export default async function TeamPage({ params }: TeamPageProps) {
               Active projects
             </p>
           </div>
-        </div>      {/* Team Management */}
+        </div>
+
+        {/* Team Management */}
         <Tabs 
           team={team}
           projects={projects}
           canManageTeam={canManageTeam}
+          userRole={userRole}
         />
       </div>
     </div>

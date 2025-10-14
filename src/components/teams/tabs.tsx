@@ -13,12 +13,21 @@ interface TabsProps {
   team: Team;
   projects: Project[];
   canManageTeam: boolean;
+  userRole?: string;
 }
 
-export function Tabs({ team, projects, canManageTeam }: TabsProps) {
+export function Tabs({ team, projects, canManageTeam, userRole }: TabsProps) {
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState('overview');
   const [showInviteForm, setShowInviteForm] = useState(false);
+
+  // Debug logs (can be removed in production)
+  console.log('Tabs Debug:', {
+    canManageTeam,
+    userRole,
+    teamMembersLength: team.members?.length,
+    activeTab
+  });
 
   // Handle URL parameters
   useEffect(() => {
@@ -134,6 +143,19 @@ export function Tabs({ team, projects, canManageTeam }: TabsProps) {
 
       {activeTab === 'members' && (
         <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-card-foreground">Members</h3>
+            {canManageTeam && (
+              <button 
+                onClick={() => setShowInviteForm(!showInviteForm)}
+                className="inline-flex items-center px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                {userRole === 'OWNER' ? 'Invite Member' : 'Add Member'}
+              </button>
+            )}
+          </div>
+
           {canManageTeam && showInviteForm && (
             <div className="flow-card p-6">
               <div className="flex items-center justify-between mb-4">
@@ -152,15 +174,6 @@ export function Tabs({ team, projects, canManageTeam }: TabsProps) {
           <div className="flow-card p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-card-foreground">Team Members</h3>
-              {canManageTeam && (
-                <button 
-                  onClick={() => setShowInviteForm(!showInviteForm)}
-                  className="inline-flex items-center px-3 py-1.5 text-sm bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors"
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Member
-                </button>
-              )}
             </div>
             <MemberList 
               members={team.members || []} 
