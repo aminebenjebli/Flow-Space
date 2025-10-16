@@ -13,11 +13,15 @@ export const navigationItems = [
     icon: 'UsersIcon', // Add Users icon to your imports
   },
   {
+    name: 'Projects',
+    href: '/projects',
+    icon: 'FolderOpenIcon', // Add FolderOpen icon for projects
+  },
+  {
     name: 'Tasks',
     href: '/tasks',
     icon: 'CheckSquareIcon', // Use your existing task icon
   },
-  // Remove direct Projects link since projects are accessed via teams
 ];
 
 // Example of updating your existing navigation component:
