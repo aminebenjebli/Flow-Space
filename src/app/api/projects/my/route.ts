@@ -9,7 +9,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Fetch user's teams first
+    // Fetch user's personal projects first
+    const personalProjectsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/projects/personal`, {
+      headers: {
+        'Authorization': `Bearer ${session.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      cache: 'no-store',
+    });
+
+    const allProjects = [];
+
+    if (personalProjectsResponse.ok) {
+      const personalProjects = await personalProjectsResponse.json();
+      allProjects.push(...personalProjects);
+    }
+
+    // Fetch user's teams
     const teamsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/teams/mine`, {
       headers: {
         'Authorization': `Bearer ${session.accessToken}`,
@@ -23,7 +39,6 @@ export async function GET(request: NextRequest) {
     }
 
     const teams = await teamsResponse.json();
-    const allProjects = [];
 
     // Fetch projects for each team
     for (const team of teams) {

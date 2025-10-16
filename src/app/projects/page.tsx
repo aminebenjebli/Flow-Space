@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { getServerSession } from 'next-auth';
 import { FolderOpen, Users, Lock, Globe, Plus, Search } from 'lucide-react';
 import Link from 'next/link';
+import CreatePersonalProjectDialog from '@/components/projects/create-personal-project-dialog';
+import useAuthRedirect from '@/hooks/useAuthRedirect';
 
 interface Project {
   id: string;
@@ -11,21 +13,30 @@ interface Project {
   description?: string;
   visibility: 'PUBLIC' | 'PRIVATE';
   createdAt: string;
-  team: {
+  team?: {
     id: string;
     name: string;
-  };
+  } | null;
   _count?: {
     tasks: number;
   };
 }
 
 export default function ProjectsPage() {
+  // Vérification d'authentification automatique
+  const { session, status } = useAuthRedirect();
+  
   const [activeTab, setActiveTab] = useState<'my' | 'public'>('my');
   const [myProjects, setMyProjects] = useState<Project[]>([]);
   const [publicProjects, setPublicProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+
+  // Si pas de session, ne rien afficher (redirection en cours)
+  if (status === 'loading' || !session) {
+    return null;
+  }
 
   useEffect(() => {
     fetchProjects();
@@ -58,7 +69,7 @@ export default function ProjectsPage() {
     return projects.filter(project =>
       project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       project.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      project.team.name.toLowerCase().includes(searchTerm.toLowerCase())
+      project.team?.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
   };
 
@@ -76,7 +87,7 @@ export default function ProjectsPage() {
               </h3>
               <p className="text-sm text-muted-foreground flex items-center gap-1">
                 <Users className="h-3 w-3" />
-                {project.team.name}
+                {project.team?.name || 'Personal Project'}
               </p>
             </div>
           </div>
@@ -142,13 +153,13 @@ export default function ProjectsPage() {
               Manage and discover projects across teams
             </p>
           </div>
-          <Link
-            href="/teams"
+          <button
+            onClick={() => setIsCreateDialogOpen(true)}
             className="inline-flex items-center px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors"
           >
             <Plus className="h-4 w-4 mr-2" />
             Create Project
-          </Link>
+          </button>
         </div>
 
         {/* Search Bar */}
@@ -207,16 +218,16 @@ export default function ProjectsPage() {
                     <p className="text-muted-foreground mb-6">
                       {searchTerm
                         ? 'Try adjusting your search terms'
-                        : 'Create your first project through a team to get started'
+                        : 'Create your first personal project or join a team to get started'
                       }
                     </p>
-                    <Link
-                      href="/teams"
+                    <button
+                      onClick={() => setIsCreateDialogOpen(true)}
                       className="inline-flex items-center px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors"
                     >
                       <Plus className="h-4 w-4 mr-2" />
-                      Create Project
-                    </Link>
+                      Create Personal Project
+                    </button>
                   </div>
                 </div>
               ) : (
@@ -249,6 +260,13 @@ export default function ProjectsPage() {
           )}
         </div>
       </div>
+
+      {/* Create Project Dialog */}
+      <CreatePersonalProjectDialog
+        isOpen={isCreateDialogOpen}
+        onClose={() => setIsCreateDialogOpen(false)}
+        onProjectCreated={fetchProjects}
+      />
     </div>
   );
 }
