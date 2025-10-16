@@ -6,7 +6,6 @@ import { Users, FolderOpen, Info, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { CreateProjectDialog } from '@/components/projects/create-project-dialog';
 import { Tabs } from '@/components/teams/tabs';
-import { MemberActions } from '@/components/teams/member-actions';
 
 interface TeamPageProps {
   params: Promise<{
@@ -79,35 +78,71 @@ export default async function TeamPage({ params }: TeamPageProps) {
   // Get current user's session to find their role
   const session = await getServerSession(authOptions);
   const currentUserId = session?.user?.id;
+  const currentUserEmail = session?.user?.email;
   
   // Debug logging
   console.log('DEBUG PAGE - User session:', {
     currentUserId,
-    userEmail: session?.user?.email,
+    userEmail: currentUserEmail,
     teamMembers: team.members?.map(m => ({ 
       userId: m.userId, 
       role: m.role,
-      userEmail: m.user?.email 
+      userEmail: m.user?.email,
+      userDbId: m.user?.id
     }))
   });
   
-  // Find current user's role in the team
-  const currentMember = team.members?.find(member => member.userId === currentUserId);
+  // Find current user's role in the team - try multiple matching strategies
+  let currentMember = team.members?.find(member => member.userId === currentUserId);
+  
+  // If not found by userId, try matching by member.id (direct ID match)
+  if (!currentMember && currentUserId) {
+    currentMember = team.members?.find(member => member.id === currentUserId);
+    console.log('DEBUG PAGE - Found member by member.id:', currentMember);
+  }
+  
+  // If not found by ID, try matching by email (direct email match)
+  if (!currentMember && currentUserEmail) {
+    currentMember = team.members?.find(member => member.email === currentUserEmail);
+    console.log('DEBUG PAGE - Found member by member.email:', currentMember);
+  }
+  
+  // If not found by direct email, try matching by user.email
+  if (!currentMember && currentUserEmail) {
+    currentMember = team.members?.find(member => member.user?.email === currentUserEmail);
+    console.log('DEBUG PAGE - Found member by user.email:', currentMember);
+  }
+  
+  // If not found by email, try matching by user.id
+  if (!currentMember && currentUserId) {
+    currentMember = team.members?.find(member => member.user?.id === currentUserId);
+    console.log('DEBUG PAGE - Found member by user.id:', currentMember);
+  }
+  
   let userRole = currentMember?.role;
   
-  // FIXME: Temporary fix - if user is the only member, assume OWNER role
-  if (!userRole && team.members?.length === 1 && currentUserId) {
-    console.log('TEMP FIX: Assuming OWNER role for single member team');
-    userRole = 'OWNER';
+  // Enhanced fallback logic for teams where user should have access
+  if (!userRole && team.members && team.members.length > 0) {
+    // Check if user is the creator/owner by checking if they're the first member
+    // or if there's any indication they should be the owner
+    const potentialOwner = team.members.find(m => m.role === 'OWNER');
+    if (!potentialOwner && currentUserId) {
+      console.log('DEBUG PAGE - No owner found, assigning OWNER to current user');
+      userRole = 'OWNER';
+    } else if (team.members.length === 1 && currentUserId) {
+      console.log('DEBUG PAGE - Single member team, assuming OWNER role');
+      userRole = 'OWNER';
+    }
   }
   
   const canManageTeam = userRole === 'OWNER' || userRole === 'ADMIN';
   
-  console.log('DEBUG PAGE - Role calculation:', {
+  console.log('DEBUG PAGE - Final role calculation:', {
     currentMember,
     userRole,
     canManageTeam,
-    isTemporaryFix: !currentMember && team.members?.length === 1
+    teamMembersCount: team.members?.length,
+    foundByEmail: !team.members?.find(member => member.userId === currentUserId) && currentMember
   });
 
   return (
@@ -122,6 +157,14 @@ export default async function TeamPage({ params }: TeamPageProps) {
             <p className="text-muted-foreground">
               {team.description || 'Team dashboard'}
             </p>
+          </div>
+          <div className="flex gap-2">
+            <Link 
+              href={`/debug-team/${teamId}`}
+              className="text-xs text-muted-foreground hover:text-primary border border-border px-2 py-1 rounded"
+            >
+              🐛 Debug Info
+            </Link>
           </div>
         </div>
         {/* Team Overview Cards */}

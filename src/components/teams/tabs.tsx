@@ -3,11 +3,14 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Team, Project } from '@/types/team';
-import { Users, FolderOpen, Info, Plus } from 'lucide-react';
+import { Users, FolderOpen, Info, Plus, BarChart3, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { MemberList } from '@/components/teams/member-list';
 import { InviteMemberForm } from '@/components/teams/invite-member-form';
 import { CreateProjectDialog } from '@/components/projects/create-project-dialog';
+import { TeamDashboard } from '@/components/teams/team-dashboard';
+import { TeamSettings } from '@/components/teams/team-settings';
+import { LeaveTeamModal } from '@/components/teams/leave-team-modal';
 
 interface TabsProps {
   team: Team;
@@ -18,7 +21,7 @@ interface TabsProps {
 
 export function Tabs({ team, projects, canManageTeam, userRole }: TabsProps) {
   const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [showInviteForm, setShowInviteForm] = useState(false);
 
   // Debug logs (can be removed in production)
@@ -26,7 +29,9 @@ export function Tabs({ team, projects, canManageTeam, userRole }: TabsProps) {
     canManageTeam,
     userRole,
     teamMembersLength: team.members?.length,
-    activeTab
+    activeTab,
+    showInviteButton: canManageTeam,
+    showSettingsTab: canManageTeam && (userRole === 'OWNER' || userRole === 'ADMIN')
   });
 
   // Handle URL parameters
@@ -50,16 +55,17 @@ export function Tabs({ team, projects, canManageTeam, userRole }: TabsProps) {
       <div className="mb-8">
         <div className="border-b border-border">
           <nav className="-mb-px flex space-x-8">
+            
             <button
-              onClick={() => setActiveTab('overview')}
+              onClick={() => setActiveTab('dashboard')}
               className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
-                activeTab === 'overview'
+                activeTab === 'dashboard'
                   ? 'border-primary text-primary'
                   : 'border-transparent text-muted-foreground hover:text-card-foreground hover:border-border'
               }`}
             >
-              <Info className="h-4 w-4" />
-              Overview
+              <BarChart3 className="h-4 w-4" />
+              Dashboard
             </button>
             <button
               onClick={() => setActiveTab('members')}
@@ -83,6 +89,19 @@ export function Tabs({ team, projects, canManageTeam, userRole }: TabsProps) {
               <FolderOpen className="h-4 w-4" />
               Projects ({projects.length})
             </button>
+            {(canManageTeam && (userRole === 'OWNER' || userRole === 'ADMIN')) && (
+              <button
+                onClick={() => setActiveTab('settings')}
+                className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+                  activeTab === 'settings'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-card-foreground hover:border-border'
+                }`}
+              >
+                <Settings className="h-4 w-4" />
+                Settings
+              </button>
+            )}
           </nav>
         </div>
       </div>
@@ -141,6 +160,12 @@ export function Tabs({ team, projects, canManageTeam, userRole }: TabsProps) {
         </div>
       )}
 
+      {activeTab === 'dashboard' && (
+        <div>
+          <TeamDashboard teamId={team.id} />
+        </div>
+      )}
+
       {activeTab === 'members' && (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
@@ -181,6 +206,15 @@ export function Tabs({ team, projects, canManageTeam, userRole }: TabsProps) {
               canManage={canManageTeam}
             />
           </div>
+
+          {/* Leave Team Section - for non-owners */}
+          {userRole !== 'OWNER' && (
+            <LeaveTeamModal 
+              teamId={team.id} 
+              teamName={team.name}
+              userRole={userRole}
+            />
+          )}
         </div>
       )}
 
@@ -226,6 +260,12 @@ export function Tabs({ team, projects, canManageTeam, userRole }: TabsProps) {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {activeTab === 'settings' && (canManageTeam && (userRole === 'OWNER' || userRole === 'ADMIN')) && (
+        <div>
+          <TeamSettings team={team} userRole={userRole} canManageTeam={canManageTeam} />
         </div>
       )}
     </div>

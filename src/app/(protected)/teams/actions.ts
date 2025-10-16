@@ -149,6 +149,7 @@ export async function inviteMember(teamId: string, data: InviteMemberData) {
 }
 
 export async function removeMember(teamId: string, userId: string) {
+  console.log('DEBUG - removeMember action:', { teamId, userId });
   const session = await getServerSession(authOptions);
   if (!session?.accessToken) {
     return { error: 'Unauthorized' };
@@ -281,3 +282,33 @@ export async function regenerateInvitation(teamId: string, email: string) {
   }
 }
 
+export async function leaveTeam(teamId: string) {
+  const session = await getServerSession(authOptions);
+  if (!session?.accessToken) {
+    return { error: 'Unauthorized' };
+  }
+
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/teams/${teamId}/leave`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      return { error: error.message || 'Failed to leave team' };
+    }
+
+    revalidatePath('/teams');
+    redirect('/teams');
+  } catch (error) {
+    if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
+      throw error; // Re-throw redirect errors
+    }
+    console.error('Leave team error:', error);
+    return { error: 'Failed to leave team' };
+  }
+}

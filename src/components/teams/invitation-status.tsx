@@ -175,17 +175,6 @@ export function InvitationStatus({ invitations, teamId }: InvitationStatusProps)
           </div>
         </div>
       )}
-
-      {/* Development Mode Notice */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-sm text-blue-800 font-medium">🔧 Development Mode</p>
-          <p className="text-xs text-blue-600 mt-1">
-            In development, you can copy and share invitation links directly. 
-            In production, email notifications will be sent automatically.
-          </p>
-        </div>
-      )}
     </div>
   );
 }

@@ -17,6 +17,7 @@ export function MemberList({ members, teamId, canManage }: MemberListProps) {
   const [success, setSuccess] = useState("");
 
   const handleRemoveMember = async (memberId: string, memberName: string) => {
+    console.log('DEBUG - handleRemoveMember:', { memberId, memberName, teamId });
     if (!confirm(`Are you sure you want to remove ${memberName} from the team?`)) {
       return;
     }
@@ -110,11 +111,11 @@ export function MemberList({ members, teamId, canManage }: MemberListProps) {
 
           {canManage && member.role !== 'OWNER' && (
             <button
-              onClick={() => handleRemoveMember(member.userId, member.user?.name || member.name || member.user?.email || member.email || 'Unknown')}
-              disabled={removingMember === member.userId}
+              onClick={() => handleRemoveMember(member.userId || member.id, member.user?.name || member.name || member.user?.email || member.email || 'Unknown')}
+              disabled={removingMember === (member.userId || member.id)}
               className="inline-flex items-center px-3 py-1 text-sm text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
             >
-              {removingMember === member.userId ? (
+              {removingMember === (member.userId || member.id) ? (
                 "Removing..."
               ) : (
                 <>
