@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { api } from "@/lib/api/axios";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -19,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useTask } from "@/contexts/task-context";
 import { toast } from "react-hot-toast";
+import WhisperTester from "../speechtotext/whisper-tester";
 
 const taskSchema = z.object({
   title: z
@@ -59,12 +61,16 @@ interface TaskFormProps {
 export function TaskForm({ task, onSuccess, onCancel }: TaskFormProps) {
   const { createTask, updateTask, isLoading } = useTask();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isParsing, setIsParsing] = useState(false);
+  const [prompt, setPrompt] = useState("");
+  // debug preview removed
 
   const {
     register,
     handleSubmit,
     formState: { errors },
     reset,
+    setValue,
   } = useForm<TaskFormData>({
     resolver: zodResolver(taskSchema),
     defaultValues: {
@@ -123,6 +129,83 @@ export function TaskForm({ task, onSuccess, onCancel }: TaskFormProps) {
     }
   };
 
+  // Call backend parser and fill form
+  const handleParse = async () => {
+    if (!prompt || prompt.trim().length === 0) {
+      toast.error("Please enter some text to parse");
+      return;
+    }
+
+    setIsParsing(true);
+    try {
+      // Use project api wrapper so auth and baseURL are handled
+      const res = await api.post("/tasks/parse", { input: prompt });
+
+      // api.post may return wrapped { data, message, ... } or the raw payload depending on backend
+      // Normalize to payload
+      // @ts-ignore
+      const payload = res?.data ?? res;
+
+  if (!payload) throw new Error("Empty parse response");
+
+  // Support title/titre (français) et description
+  if (payload.title || payload.titre) setValue("title", payload.title ?? payload.titre ?? "");
+  if (payload.description) setValue("description", payload.description || "");
+
+      if (payload.dueDate) {
+        const date = new Date(payload.dueDate);
+        if (!isNaN(date.getTime())) {
+          const isoDate = date.toISOString().split("T")[0];
+          setValue("dueDate", isoDate);
+        }
+      }
+
+      // Normalize priority/priorite (backend may return lowercase or française)
+      const prio = payload.priority ?? payload.priorite;
+      if (prio) {
+        const p = String(prio).toUpperCase();
+        const priorityMap: Record<string, any> = {
+          LOW: TaskPriority.LOW,
+          MEDIUM: TaskPriority.MEDIUM,
+          HIGH: TaskPriority.HIGH,
+          URGENT: TaskPriority.URGENT,
+          NORMALE: TaskPriority.MEDIUM, // mapping "normale" à "medium"
+        };
+        if (priorityMap[p]) setValue("priority", priorityMap[p]);
+      }
+
+      // Normalize status if provided
+      if (payload.status) {
+        const s = String(payload.status).toUpperCase();
+        // Map to TaskStatus enum values if they match
+        try {
+          // @ts-ignore
+          const enumVal = s as keyof typeof TaskStatus;
+          // @ts-ignore
+          if (TaskStatus[enumVal]) setValue("status", TaskStatus[enumVal]);
+        } catch (e) {
+          // ignore
+        }
+      }
+
+  toast.success("Form filled from parsed text");
+  setPrompt("");
+    } catch (error) {
+      // Extract better details from axios error
+      const err = error as any;
+      console.error("Parsing error:", err);
+      if (err?.response) {
+        console.error("Parser response status:", err.response.status, err.response.data);
+        const serverMessage = err.response.data?.message ?? JSON.stringify(err.response.data);
+        toast.error(`Parse failed (${err.response.status}): ${serverMessage}`);
+      } else {
+        toast.error(String(err?.message ?? "Failed to parse text"));
+      }
+    } finally {
+      setIsParsing(false);
+    }
+  };
+
   const statusOptions = [
     { value: TaskStatus.TODO, label: "To Do" },
     { value: TaskStatus.IN_PROGRESS, label: "In Progress" },
@@ -151,6 +234,42 @@ export function TaskForm({ task, onSuccess, onCancel }: TaskFormProps) {
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        {/* Parser prompt */}
+        <div className="space-y-2">
+          <Label htmlFor="prompt">Quick Add</Label>
+          {/* Whisper live tester placed above the quick add textarea */}
+          <div className="mb-2">
+            <WhisperTester
+              autoInsert="replace"
+              onTranscription={(text: string, opts?: { replace?: boolean }) => {
+                // WhisperTester will call this when autoInsert is enabled; ensure we set the prompt accordingly
+                if (opts?.replace) setPrompt(text);
+                else setPrompt((p) => (p && p.length > 0 ? `${p} ${text}` : text));
+              }}
+            />
+          </div>
+          <div className="flex items-start space-x-2">
+            <Textarea
+              id="prompt"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="Describe the task in natural language (e.g. 'Call John tomorrow at 3pm about marketing')."
+              rows={2}
+            />
+            <div className="flex-shrink-0">
+              <Button
+                type="button"
+                onClick={handleParse}
+                disabled={isParsing}
+                className="whitespace-nowrap"
+              >
+                {isParsing ? "Parsing..." : "Parse"}
+              </Button>
+            </div>
+          </div>
+          {/* Parsed preview / error (debug) */}
+          {/* parsed preview removed */}
+        </div>
         {/* Title */}
         <div className="space-y-2">
           <Label htmlFor="title">Title *</Label>
