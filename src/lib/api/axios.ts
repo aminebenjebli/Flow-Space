@@ -188,6 +188,7 @@ export const api = {
       search?: string;
       dueFrom?: string;
       dueUntil?: string;
+      projectId?: string;
       page?: number;
       limit?: number;
       sortBy?: string;
@@ -216,6 +217,7 @@ export const api = {
       status?: string;
       priority?: string;
       dueDate?: string;
+      projectId?: string;
     }) => api.post("/tasks", task),
 
     // Update existing task
@@ -227,6 +229,7 @@ export const api = {
         status?: string;
         priority?: string;
         dueDate?: string;
+        projectId?: string;
       }
     ) => api.patch(`/tasks/${id}`, task),
 

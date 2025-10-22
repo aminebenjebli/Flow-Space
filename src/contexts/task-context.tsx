@@ -49,8 +49,10 @@ const TaskContext = createContext<TaskContextType | undefined>(undefined);
 
 export function TaskProvider({
   children,
+  projectId,
 }: {
   readonly children: React.ReactNode;
+  readonly projectId?: string;
 }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [stats, setStats] = useState<TaskStatsResponse | null>(null);
@@ -67,6 +69,7 @@ export function TaskProvider({
     limit: 10,
     sortBy: "createdAt",
     sortOrder: "desc",
+    ...(projectId && { projectId }),
   });
 
   const fetchTasks = useCallback(
@@ -149,8 +152,12 @@ export function TaskProvider({
     async (data: CreateTaskDto): Promise<Task | null> => {
       setIsLoading(true);
       try {
-        console.log("Creating task with data:", data);
-        const response = await api.tasks.create(data);
+        const taskData = { 
+          ...data, 
+          ...(projectId && { projectId }) 
+        };
+        console.log("Creating task with data:", taskData);
+        const response = await api.tasks.create(taskData);
         console.log("Create response:", response);
 
         let newTask: Task;

@@ -7,19 +7,14 @@ import { TaskCard } from '@/components/tasks/task-card';
 import { TaskFilters } from '@/components/tasks/task-filters';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ProjectSettings } from '@/components/projects/project-settings';
+import { ProjectTasksManager } from '@/components/projects/project-tasks-manager';
+import { TaskProvider } from '@/contexts/task-context';
 import { FolderOpen, Plus, ArrowLeft, Settings, CheckSquare } from 'lucide-react';
 import Link from 'next/link';
 
 interface ProjectPageProps {
   params: Promise<{
     projectId: string;
-  }>;
-  searchParams: Promise<{
-    status?: string;
-    priority?: string;
-    q?: string;
-    sortBy?: string;
-    page?: string;
   }>;
 }
 
@@ -162,12 +157,10 @@ async function getProjectTasks(projectId: string, searchParams: any): Promise<{ 
   }
 }
 
-export default async function ProjectPage({ params, searchParams }: ProjectPageProps) {
+export default async function ProjectPage({ params }: ProjectPageProps) {
   const { projectId } = await params;
-  const resolvedSearchParams = await searchParams;
-  const [project, { tasks }, userTeams] = await Promise.all([
+  const [project, userTeams] = await Promise.all([
     getProject(projectId),
-    getProjectTasks(projectId, resolvedSearchParams),
     getCurrentUserTeams(),
   ]);
 
@@ -261,7 +254,7 @@ export default async function ProjectPage({ params, searchParams }: ProjectPageP
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="tasks" className="flex items-center gap-2">
               <CheckSquare className="h-4 w-4" />
-              Tasks ({tasks.length})
+              Tasks
             </TabsTrigger>
             {canAdmin && (
               <TabsTrigger value="settings" className="flex items-center gap-2">
@@ -272,42 +265,13 @@ export default async function ProjectPage({ params, searchParams }: ProjectPageP
           </TabsList>
 
           <TabsContent value="tasks" className="mt-6">
-            {/* Task Filters */}
-            <TaskFilters />
-
-            {/* Tasks Grid */}
-            <div className="space-y-4 mt-6">
-              {tasks.length === 0 ? (
-                <div className="text-center py-12">
-                  <FolderOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-card-foreground mb-2">
-                    No tasks found
-                  </h3>
-                  <p className="text-muted-foreground mb-4">
-                    {resolvedSearchParams.q || resolvedSearchParams.status
-                      ? "Try adjusting your search or filters"
-                      : "Get started by creating your first task"}
-                  </p>
-                  <button className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create First Task
-                  </button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {tasks.map((task) => (
-                    <TaskCard
-                      key={task.id}
-                      task={task}
-                      onEdit={() => {}}
-                      onSelect={() => {}}
-                      onView={() => {}}
-                      isSelected={false}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
+            <TaskProvider projectId={projectId}>
+              <ProjectTasksManager 
+                projectId={projectId}
+                projectName={project.name}
+                isProjectAdmin={canAdmin}
+              />
+            </TaskProvider>
           </TabsContent>
 
           {canAdmin && (
