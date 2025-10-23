@@ -13,13 +13,17 @@ export default withAuth(
         if (!token) {
           return false;
         }
-        
+
         // Vérifier si le token n'est pas expiré
         const currentTime = Math.floor(Date.now() / 1000);
-        if (token.exp && typeof token.exp === 'number' && currentTime > token.exp) {
+        if (
+          token.exp &&
+          typeof token.exp === "number" &&
+          currentTime > token.exp
+        ) {
           return false;
         }
-        
+
         return true;
       },
     },
@@ -36,7 +40,9 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - login, signup, forgot-password, reset-password, verify (auth pages)
+     * - manifest.json, sw.js, offline.html (PWA files)
+     * - icons/ (PWA icons)
      */
-    "/((?!api/auth|_next/static|_next/image|favicon.ico|login|signup|forgot-password|reset-password|verify).*)",
+    "/((?!api/auth|_next/static|_next/image|favicon.ico|login|signup|forgot-password|reset-password|verify|manifest.json|sw.js|offline.html|icons/).*)",
   ],
 };

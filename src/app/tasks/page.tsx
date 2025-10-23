@@ -9,6 +9,8 @@ import {
   Clock,
   AlertCircle,
   TrendingUp,
+  Menu,
+  X,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -44,6 +46,7 @@ export default function TasksPage() {
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
   const [currentView, setCurrentView] = useState<ViewType>("grid");
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -135,25 +138,58 @@ export default function TasksPage() {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-card-foreground mb-2">
-              Task Management
-            </h1>
-            <p className="text-muted-foreground">
-              Organize and track your tasks efficiently
-            </p>
+        <div className="mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-card-foreground mb-1">
+                Task Management
+              </h1>
+              <p className="text-sm text-muted-foreground hidden sm:block">
+                Organize and track your tasks efficiently
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="sm:hidden">
+                <button
+                  aria-label="Toggle menu"
+                  onClick={() => setMobileMenuOpen((v) => !v)}
+                  className="p-2 rounded-md"
+                >
+                  {mobileMenuOpen ? (
+                    <X className="h-5 w-5" />
+                  ) : (
+                    <Menu className="h-5 w-5" />
+                  )}
+                </button>
+              </div>
+
+              <div className="hidden sm:flex items-center gap-4">
+                <ViewSwitcher
+                  currentView={currentView}
+                  onViewChange={setCurrentView}
+                />
+                <Button onClick={() => setShowCreateForm(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Task
+                </Button>
+              </div>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            <ViewSwitcher
-              currentView={currentView}
-              onViewChange={setCurrentView}
-            />
-            <Button onClick={() => setShowCreateForm(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              New Task
-            </Button>
-          </div>
+
+          {/* Mobile menu */}
+          {mobileMenuOpen && (
+            <div className="mt-4 flex flex-col gap-2 sm:hidden">
+              <ViewSwitcher
+                currentView={currentView}
+                onViewChange={setCurrentView}
+              />
+              <Button onClick={() => setShowCreateForm(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                New Task
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Stats Cards */}

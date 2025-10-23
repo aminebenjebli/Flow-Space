@@ -18,6 +18,7 @@ import { useTask, TaskProvider } from "@/contexts/task-context";
 import { api } from "@/lib/api/axios";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "react-hot-toast";
+import PWAInstallButton from "@/components/pwa/install-button";
 import {
   CheckCircle,
   Clock,
@@ -30,6 +31,8 @@ import {
   LogOut,
   ChevronDown,
   Settings,
+  Menu,
+  X,
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -65,6 +68,7 @@ function DashboardContent({ session }: { readonly session: any }) {
   const { profile, fetchProfile } = useProfile();
   const { tasks, stats: taskStats, fetchTasks, fetchStats } = useTask();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (session?.user?.id) {
@@ -194,7 +198,25 @@ function DashboardContent({ session }: { readonly session: any }) {
                   className="pl-10 pr-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-foreground placeholder:text-muted-foreground transition-colors"
                 />
               </div>
+              {/* PWA Install Button */}
+              <div className="hidden sm:block">
+                <PWAInstallButton />
+              </div>
               <ThemeToggle />
+              {/* Mobile menu button */}
+              <div className="sm:hidden">
+                <button
+                  aria-label="Toggle menu"
+                  onClick={() => setMobileMenuOpen((v) => !v)}
+                  className="p-2 rounded-md"
+                >
+                  {mobileMenuOpen ? (
+                    <X className="h-5 w-5" />
+                  ) : (
+                    <Menu className="h-5 w-5" />
+                  )}
+                </button>
+              </div>
               <button className="relative p-2 text-foreground hover:text-primary transition-colors">
                 <Bell className="h-5 w-5" />
                 <span className="absolute -top-1 -right-1 h-4 w-4 bg-destructive rounded-full text-xs text-destructive-foreground flex items-center justify-center">
@@ -263,6 +285,37 @@ function DashboardContent({ session }: { readonly session: any }) {
             </div>
           </div>
         </div>
+        {/* Mobile menu content */}
+        {mobileMenuOpen && (
+          <div className="sm:hidden px-6 pb-4">
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => router.push("/dashboard")}
+                className="text-left px-3 py-2 rounded hover:bg-primary/10"
+              >
+                Dashboard
+              </button>
+              <button
+                onClick={() => router.push("/tasks")}
+                className="text-left px-3 py-2 rounded hover:bg-primary/10"
+              >
+                Tasks
+              </button>
+              <button
+                onClick={() => router.push("/teams")}
+                className="text-left px-3 py-2 rounded hover:bg-primary/10"
+              >
+                Teams
+              </button>
+              <button
+                onClick={() => router.push("/analytics")}
+                className="text-left px-3 py-2 rounded hover:bg-primary/10"
+              >
+                Analytics
+              </button>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Main Content */}
