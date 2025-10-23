@@ -171,10 +171,10 @@ function DashboardContent({ session }: { readonly session: any }) {
                   Tasks
                 </button>
                 <button
-                  onClick={() => router.push("/projects")}
+                  onClick={() => router.push("/teams")}
                   className="px-4 py-2 text-sm font-medium text-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200"
                 >
-                  Projects
+                  Teams
                 </button>
                 <button
                   onClick={() => router.push("/analytics")}
