@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 
 export default function PWADebugPanel() {
   const [showDebug, setShowDebug] = useState(false);
@@ -16,12 +16,12 @@ export default function PWADebugPanel() {
     const diagnostics: any = {};
 
     // Check if service worker is registered
-    if ('serviceWorker' in navigator) {
+    if ("serviceWorker" in navigator) {
       const registration = await navigator.serviceWorker.getRegistration();
       diagnostics.serviceWorker = {
         supported: true,
         registered: !!registration,
-        scope: registration?.scope || 'N/A'
+        scope: registration?.scope || "N/A",
       };
     } else {
       diagnostics.serviceWorker = { supported: false };
@@ -29,10 +29,10 @@ export default function PWADebugPanel() {
 
     // Check manifest
     try {
-      const manifestResponse = await fetch('/manifest.json');
+      const manifestResponse = await fetch("/manifest.json");
       diagnostics.manifest = {
         accessible: manifestResponse.ok,
-        status: manifestResponse.status
+        status: manifestResponse.status,
       };
     } catch (error) {
       diagnostics.manifest = { accessible: false, error: error };
@@ -40,21 +40,22 @@ export default function PWADebugPanel() {
 
     // Check if app is installable
     diagnostics.installability = {
-      isStandalone: globalThis.matchMedia('(display-mode: standalone)').matches,
-      hasBeforeInstallPrompt: 'onbeforeinstallprompt' in globalThis,
-      userAgent: navigator.userAgent
+      isStandalone: globalThis.matchMedia("(display-mode: standalone)").matches,
+      hasBeforeInstallPrompt: "onbeforeinstallprompt" in globalThis,
+      userAgent: navigator.userAgent,
     };
 
     // Check HTTPS
     diagnostics.security = {
-      isHTTPS: location.protocol === 'https:' || location.hostname === 'localhost'
+      isHTTPS:
+        location.protocol === "https:" || location.hostname === "localhost",
     };
 
     setPWADiagnostics(diagnostics);
   };
 
   const triggerInstallPrompt = () => {
-    const event = new CustomEvent('pwa-install-requested');
+    const event = new CustomEvent("pwa-install-requested");
     globalThis.dispatchEvent(event);
   };
 
@@ -80,28 +81,42 @@ export default function PWADebugPanel() {
           ✕
         </button>
       </div>
-      
+
       <div className="space-y-3">
         <div>
           <h4 className="font-semibold text-blue-400">Service Worker</h4>
-          <p>Supported: {pwaDiagnostics.serviceWorker?.supported ? '✅' : '❌'}</p>
-          <p>Registered: {pwaDiagnostics.serviceWorker?.registered ? '✅' : '❌'}</p>
+          <p>
+            Supported: {pwaDiagnostics.serviceWorker?.supported ? "✅" : "❌"}
+          </p>
+          <p>
+            Registered: {pwaDiagnostics.serviceWorker?.registered ? "✅" : "❌"}
+          </p>
         </div>
 
         <div>
           <h4 className="font-semibold text-blue-400">Manifest</h4>
-          <p>Accessible: {pwaDiagnostics.manifest?.accessible ? '✅' : '❌'}</p>
+          <p>Accessible: {pwaDiagnostics.manifest?.accessible ? "✅" : "❌"}</p>
         </div>
 
         <div>
           <h4 className="font-semibold text-blue-400">Installability</h4>
-          <p>Is Standalone: {pwaDiagnostics.installability?.isStandalone ? '✅' : '❌'}</p>
-          <p>Install Event: {pwaDiagnostics.installability?.hasBeforeInstallPrompt ? '✅' : '❌'}</p>
+          <p>
+            Is Standalone:{" "}
+            {pwaDiagnostics.installability?.isStandalone ? "✅" : "❌"}
+          </p>
+          <p>
+            Install Event:{" "}
+            {pwaDiagnostics.installability?.hasBeforeInstallPrompt
+              ? "✅"
+              : "❌"}
+          </p>
         </div>
 
         <div>
           <h4 className="font-semibold text-blue-400">Security</h4>
-          <p>HTTPS/Localhost: {pwaDiagnostics.security?.isHTTPS ? '✅' : '❌'}</p>
+          <p>
+            HTTPS/Localhost: {pwaDiagnostics.security?.isHTTPS ? "✅" : "❌"}
+          </p>
         </div>
 
         <div className="pt-3 border-t border-gray-700">
@@ -111,7 +126,7 @@ export default function PWADebugPanel() {
           >
             Try Install
           </button>
-          
+
           <div className="mt-2 text-gray-300">
             <p className="font-semibold">Manual Install:</p>
             <p>Chrome: Menu → Install App</p>
