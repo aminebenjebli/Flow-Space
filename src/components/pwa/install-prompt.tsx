@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 
 declare global {
   interface BeforeInstallPromptEvent extends Event {
     readonly platforms: string[];
     readonly userChoice: Promise<{
-      outcome: 'accepted' | 'dismissed';
+      outcome: "accepted" | "dismissed";
       platform: string;
     }>;
     prompt(): Promise<void>;
@@ -18,23 +18,26 @@ declare global {
 }
 
 export default function PWAInstallPrompt() {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [deferredPrompt, setDeferredPrompt] =
+    useState<BeforeInstallPromptEvent | null>(null);
   const [showInstallButton, setShowInstallButton] = useState(false);
   const [showManualInstructions, setShowManualInstructions] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
     // Check if already installed
-    const standalone = globalThis.matchMedia('(display-mode: standalone)').matches;
+    const standalone = globalThis.matchMedia(
+      "(display-mode: standalone)"
+    ).matches;
     setIsStandalone(standalone);
 
     if (standalone) {
-      console.log('📱 App is already installed');
+      console.log("📱 App is already installed");
       return;
     }
 
     const handleBeforeInstallPrompt = (e: BeforeInstallPromptEvent) => {
-      console.log('🚀 PWA install prompt available');
+      console.log("🚀 PWA install prompt available");
       e.preventDefault();
       setDeferredPrompt(e);
       setShowInstallButton(true);
@@ -49,20 +52,29 @@ export default function PWAInstallPrompt() {
       }
     };
 
-    globalThis.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    globalThis.addEventListener('pwa-install-requested', handleInstallRequest);
+    globalThis.addEventListener(
+      "beforeinstallprompt",
+      handleBeforeInstallPrompt
+    );
+    globalThis.addEventListener("pwa-install-requested", handleInstallRequest);
 
     // Show manual install option after 3 seconds if no prompt
     const timer = setTimeout(() => {
       if (!deferredPrompt && !standalone) {
         setShowInstallButton(true);
-        console.log('💡 Showing manual install option');
+        console.log("💡 Showing manual install option");
       }
     }, 3000);
 
     return () => {
-      globalThis.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      globalThis.removeEventListener('pwa-install-requested', handleInstallRequest);
+      globalThis.removeEventListener(
+        "beforeinstallprompt",
+        handleBeforeInstallPrompt
+      );
+      globalThis.removeEventListener(
+        "pwa-install-requested",
+        handleInstallRequest
+      );
       clearTimeout(timer);
     };
   }, [deferredPrompt]);
@@ -83,52 +95,52 @@ export default function PWAInstallPrompt() {
 
   const getManualInstructions = () => {
     const userAgent = navigator.userAgent.toLowerCase();
-    
-    if (userAgent.includes('chrome') && !userAgent.includes('edg')) {
+
+    if (userAgent.includes("chrome") && !userAgent.includes("edg")) {
       return {
-        browser: 'Chrome',
+        browser: "Chrome",
         steps: [
-          'Click the menu (⋮) in the top-right corner',
+          "Click the menu (⋮) in the top-right corner",
           'Select "Install FlowSpace" or "Add to Home Screen"',
-          'Click "Install" when prompted'
-        ]
+          'Click "Install" when prompted',
+        ],
       };
-    } else if (userAgent.includes('safari') && !userAgent.includes('chrome')) {
+    } else if (userAgent.includes("safari") && !userAgent.includes("chrome")) {
       return {
-        browser: 'Safari',
+        browser: "Safari",
         steps: [
-          'Tap the Share button (⬆️) at the bottom',
+          "Tap the Share button (⬆️) at the bottom",
           'Scroll down and tap "Add to Home Screen"',
-          'Tap "Add" to confirm'
-        ]
+          'Tap "Add" to confirm',
+        ],
       };
-    } else if (userAgent.includes('firefox')) {
+    } else if (userAgent.includes("firefox")) {
       return {
-        browser: 'Firefox',
+        browser: "Firefox",
         steps: [
-          'Click the menu (☰) in the top-right corner',
+          "Click the menu (☰) in the top-right corner",
           'Select "Install this site as an app"',
-          'Click "Install" when prompted'
-        ]
+          'Click "Install" when prompted',
+        ],
       };
-    } else if (userAgent.includes('edg')) {
+    } else if (userAgent.includes("edg")) {
       return {
-        browser: 'Edge',
+        browser: "Edge",
         steps: [
-          'Click the menu (⋯) in the top-right corner',
+          "Click the menu (⋯) in the top-right corner",
           'Select "Apps" → "Install this site as an app"',
-          'Click "Install" when prompted'
-        ]
+          'Click "Install" when prompted',
+        ],
       };
     }
-    
+
     return {
-      browser: 'Your browser',
+      browser: "Your browser",
       steps: [
-        'Look for an install icon in the address bar',
+        "Look for an install icon in the address bar",
         'Check browser menu for "Install app" option',
-        'Try adding to home screen on mobile'
-      ]
+        "Try adding to home screen on mobile",
+      ],
     };
   };
 
@@ -146,13 +158,14 @@ export default function PWAInstallPrompt() {
 
   if (showManualInstructions) {
     const instructions = getManualInstructions();
-    
+
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-lg p-6 max-w-md w-full">
           <h3 className="text-lg font-semibold mb-4">Install FlowSpace App</h3>
           <p className="text-sm text-gray-600 mb-4">
-            To install FlowSpace as an app on your device using {instructions.browser}:
+            To install FlowSpace as an app on your device using{" "}
+            {instructions.browser}:
           </p>
           <ol className="list-decimal list-inside space-y-2 text-sm">
             {instructions.steps.map((step) => (
