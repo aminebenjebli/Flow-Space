@@ -22,7 +22,10 @@ import { ViewSwitcher } from "@/components/tasks/view-switcher";
 import { TaskDetailsModal } from "@/components/tasks/task-details-modal";
 import { Modal } from "@/components/ui/modal";
 import { useTask } from "@/contexts/task-context";
-import { Task, TaskStatus } from "@/types/index";
+import { Task, TaskStatus, TaskPriority } from "@/types/index";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "react-hot-toast";
+import { api } from "@/lib/api/axios";
 
 type ViewType = "grid" | "kanban";
 
@@ -39,6 +42,7 @@ export default function TasksPage() {
     fetchStats,
     setFilters,
     bulkUpdateStatus,
+    createTask,
   } = useTask();
 
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -46,6 +50,9 @@ export default function TasksPage() {
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
   const [currentView, setCurrentView] = useState<ViewType>("grid");
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -119,6 +126,76 @@ export default function TasksPage() {
     setEditingTask(null);
   };
 
+  // Fetch AI suggestions from the backend
+  const fetchSuggestions = async () => {
+    setLoadingSuggestions(true);
+    try {
+      // This endpoint expects POST with a userId and optional maxSuggestions (see curl)
+      const userId = (session as any)?.user?.id || (session as any)?.userId || (session as any)?.id;
+      const body: any = { maxSuggestions: 3 };
+      if (userId) body.userId = userId;
+
+      const res = await api.post("/task-ai/propose-by-user", body);
+      const payload = res?.data ?? res;
+      const list = payload?.suggestions ?? [];
+      setSuggestions(Array.isArray(list) ? list : []);
+      setShowSuggestions(true);
+      if (!list || list.length === 0) {
+        toast("Aucune suggestion trouvée");
+      }
+    } catch (err: any) {
+      console.error("Failed to fetch suggestions:", err, err?.response?.data ?? err?.message);
+      // If backend returns 404 for POST, inform the developer to check method/path
+      if (err?.response?.status === 404) {
+        toast.error("Endpoint introuvable (404). Vérifie l'URL et la méthode (POST attendu).");
+      } else {
+        toast.error("Impossible de récupérer les suggestions AI");
+      }
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  };
+
+  const mapPriorityToEnum = (p?: string) => {
+    if (!p) return TaskPriority.MEDIUM;
+    const s = String(p).toLowerCase();
+    if (s.includes("low") || s.includes("basse")) return TaskPriority.LOW;
+    if (s.includes("high") || s.includes("haute")) return TaskPriority.HIGH;
+    if (s.includes("urgent")) return TaskPriority.URGENT;
+    if (s.includes("normal") || s.includes("normale") || s === "normal") return TaskPriority.MEDIUM;
+    return TaskPriority.MEDIUM;
+  };
+
+  const createFromSuggestion = async (s: any) => {
+    if (!s || !s.title) {
+      toast.error("Suggestion invalide");
+      return;
+    }
+
+    try {
+      const payload: any = {
+        title: s.title,
+        description: s.description ?? "",
+        priority: mapPriorityToEnum(s.priority),
+      };
+
+      const created = await createTask(payload);
+      if (created) {
+        toast.success("Tâche ajoutée depuis la suggestion");
+        // refresh tasks and stats
+        fetchTasks();
+        fetchStats();
+        // remove the suggestion from the list
+        setSuggestions((prev) => prev.filter((item) => item !== s));
+      } else {
+        toast.error("La création de la tâche a échoué");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Erreur lors de la création depuis la suggestion");
+    }
+  };
+
   if (status === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -138,6 +215,32 @@ export default function TasksPage() {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
+
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-card-foreground mb-2">
+              Task Management
+            </h1>
+            <p className="text-muted-foreground">
+              Organize and track your tasks efficiently
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            <ViewSwitcher
+              currentView={currentView}
+              onViewChange={setCurrentView}
+            />
+            <Button onClick={() => setShowCreateForm(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              New Task
+            </Button>
+            <Button
+              variant="outline"
+              onClick={fetchSuggestions}
+              disabled={loadingSuggestions}
+            >
+              Suggestions AI
+            </Button>
         <div className="mb-6">
           <div className="flex items-center justify-between">
             <div>
@@ -175,6 +278,7 @@ export default function TasksPage() {
                 </Button>
               </div>
             </div>
+
           </div>
 
           {/* Mobile menu */}
@@ -247,6 +351,44 @@ export default function TasksPage() {
 
         {/* Filters and Search */}
         <TaskFilters />
+
+        {/* Suggestions Panel */}
+        {showSuggestions && (
+          <div className="flow-card p-4 mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <h3 className="text-sm font-medium">Suggestions AI</h3>
+                <Badge>{suggestions.length}</Badge>
+              </div>
+              <div>
+                <Button size="sm" variant="ghost" onClick={() => setShowSuggestions(false)}>
+                  Fermer
+                </Button>
+              </div>
+            </div>
+
+            {suggestions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Aucune suggestion pour le moment.</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {suggestions.map((s, idx) => (
+                  <div key={idx} className="border rounded-md p-3 bg-muted">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h4 className="font-semibold">{s.title}</h4>
+                        {s.description && <p className="text-sm text-muted-foreground">{s.description}</p>}
+                        {s.reason && <p className="mt-2 text-xs text-muted-foreground">{s.reason}</p>}
+                      </div>
+                      <div className="flex flex-col items-end space-y-2">
+                        <Button size="sm" onClick={() => createFromSuggestion(s)}>Ajouter</Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Bulk Actions Toolbar */}
         {selectedTasks.length > 0 && (
