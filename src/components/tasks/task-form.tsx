@@ -146,11 +146,13 @@ export function TaskForm({ task, onSuccess, onCancel }: TaskFormProps) {
       // @ts-ignore
       const payload = res?.data ?? res;
 
-  if (!payload) throw new Error("Empty parse response");
+      if (!payload) throw new Error("Empty parse response");
 
-  // Support title/titre (français) et description
-  if (payload.title || payload.titre) setValue("title", payload.title ?? payload.titre ?? "");
-  if (payload.description) setValue("description", payload.description || "");
+      // Support title/titre (français) et description
+      if (payload.title || payload.titre)
+        setValue("title", payload.title ?? payload.titre ?? "");
+      if (payload.description)
+        setValue("description", payload.description || "");
 
       if (payload.dueDate) {
         const date = new Date(payload.dueDate);
@@ -170,8 +172,15 @@ export function TaskForm({ task, onSuccess, onCancel }: TaskFormProps) {
           HIGH: TaskPriority.HIGH,
           URGENT: TaskPriority.URGENT,
           NORMALE: TaskPriority.MEDIUM, // mapping "normale" à "medium"
+          NORMAL: TaskPriority.MEDIUM, // mapping "normal" to "medium"
         };
-        if (priorityMap[p]) setValue("priority", priorityMap[p]);
+        if (priorityMap[p]) {
+          setValue("priority", priorityMap[p]);
+        } else {
+          // If not found in map, default to MEDIUM
+          console.warn(`Unknown priority value: ${prio}, defaulting to MEDIUM`);
+          setValue("priority", TaskPriority.MEDIUM);
+        }
       }
 
       // Normalize status if provided
@@ -188,15 +197,20 @@ export function TaskForm({ task, onSuccess, onCancel }: TaskFormProps) {
         }
       }
 
-  toast.success("Form filled from parsed text");
-  setPrompt("");
+      toast.success("Form filled from parsed text");
+      setPrompt("");
     } catch (error) {
       // Extract better details from axios error
       const err = error as any;
       console.error("Parsing error:", err);
       if (err?.response) {
-        console.error("Parser response status:", err.response.status, err.response.data);
-        const serverMessage = err.response.data?.message ?? JSON.stringify(err.response.data);
+        console.error(
+          "Parser response status:",
+          err.response.status,
+          err.response.data
+        );
+        const serverMessage =
+          err.response.data?.message ?? JSON.stringify(err.response.data);
         toast.error(`Parse failed (${err.response.status}): ${serverMessage}`);
       } else {
         toast.error(String(err?.message ?? "Failed to parse text"));
@@ -244,7 +258,8 @@ export function TaskForm({ task, onSuccess, onCancel }: TaskFormProps) {
               onTranscription={(text: string, opts?: { replace?: boolean }) => {
                 // WhisperTester will call this when autoInsert is enabled; ensure we set the prompt accordingly
                 if (opts?.replace) setPrompt(text);
-                else setPrompt((p) => (p && p.length > 0 ? `${p} ${text}` : text));
+                else
+                  setPrompt((p) => (p && p.length > 0 ? `${p} ${text}` : text));
               }}
             />
           </div>

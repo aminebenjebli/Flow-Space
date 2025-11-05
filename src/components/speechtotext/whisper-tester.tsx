@@ -104,6 +104,7 @@ const [loading, setLoading] = useState(false);
 const [error, setError] = useState<string | null>(null);
 const [isRecording, setIsRecording] = useState(false);
 const [lastInserted, setLastInserted] = useState<{ text: string; at: number } | null>(null);
+const [selectedLanguage, setSelectedLanguage] = useState<string>('auto');
 
 const audioContextRef = useRef<AudioContext | null>(null);
 const processorRef = useRef<any | null>(null);
@@ -153,9 +154,13 @@ const fd = new FormData();
 fd.append('audio', blob, `upload-${Date.now()}.wav`);
 if (opts?.sessionId) fd.append('sessionId', opts.sessionId);
 if (typeof opts?.chunkIndex === 'number') fd.append('chunkIndex', String(opts.chunkIndex));
+// Send language preference (but backend ignores it for auto-detection)
+if (selectedLanguage && selectedLanguage !== 'auto') {
+  fd.append('language', selectedLanguage);
+}
   const res = await api.post('/whisper/transcribe', fd, {
     headers: { 'Content-Type': 'multipart/form-data' },
-    timeout: 120000,
+    timeout: 300000, // Increased to 5 minutes for Whisper processing
   });
 
   const payload = res?.data ?? res;
@@ -209,7 +214,17 @@ if (typeof opts?.chunkIndex === 'number') fd.append('chunkIndex', String(opts.ch
   return payload;
 } catch (e: any) {
   console.error('[whisper] uploadBlob error', e);
-  setError(e?.response?.data?.message || e?.message || String(e));
+  
+  // Better error messages
+  let errorMsg = e?.response?.data?.message || e?.message || String(e);
+  if (errorMsg.includes('timeout')) {
+    errorMsg = 'Transcription en cours... (traitement long)';
+    // Don't set as error, just log warning
+    console.warn('[whisper] Timeout but transcription may still be processing');
+    return null; // Return null instead of throwing, let backend finish processing
+  }
+  
+  setError(errorMsg);
   throw e;
 } finally {
   setLoading(false);
@@ -236,8 +251,13 @@ console.debug('[whisper] sending chunk', { sessionId: sessionIdRef.current, chun
 concurrentUploadsRef.current++;
 try {
   await uploadBlob(wav, { sessionId: sessionIdRef.current || undefined, chunkIndex: currentChunk });
-} catch (e) {
-  console.warn('upload failed', e);
+} catch (e: any) {
+  // Don't crash on timeout - transcription may still be processing on backend
+  if (e?.message?.includes('timeout')) {
+    console.warn('[whisper] Upload timeout - chunk may still be processing on backend');
+  } else {
+    console.warn('upload failed', e);
+  }
 } finally {
   concurrentUploadsRef.current = Math.max(0, concurrentUploadsRef.current - 1);
 }
@@ -251,7 +271,19 @@ try {
 // reset client chunk store for new session
 sessionChunksRef.current.clear();
 lastServerSnapshotRef.current = null;
-const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+// Enhanced audio constraints for better speech recognition
+const stream = await navigator.mediaDevices.getUserMedia({ 
+  audio: {
+    sampleRate: 48000,        // Higher sample rate for better quality
+    channelCount: 1,          // Mono audio
+    echoCancellation: true,   // Remove echo
+    noiseSuppression: true,   // Remove background noise
+    autoGainControl: true,    // Automatic volume adjustment
+    sampleSize: 16           // 16-bit audio
+  } 
+});
+
 const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
 audioContextRef.current = audioCtx;
 streamRef.current = stream;
@@ -296,7 +328,8 @@ buffersRef.current = [];
   sessionIdRef.current = `s-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   chunkIndexRef.current = 0;
 
-  const timesliceMs = 3000;
+  // Longer chunks for better context (5 seconds instead of 3)
+  const timesliceMs = 5000;
   chunkIntervalRef.current = window.setInterval(flushBufferAndUpload, timesliceMs);
 
   setIsRecording(true);
@@ -307,24 +340,76 @@ buffersRef.current = [];
 
 const stopRecording = async () => {
 try {
-if (chunkIntervalRef.current) {
-clearInterval(chunkIntervalRef.current);
-chunkIntervalRef.current = null;
-}
-await flushBufferAndUpload();
-  // Ask backend for final aggregation (optional)
+  setIsRecording(false); // Disable recording immediately so user can't double-click
+  
+  if (chunkIntervalRef.current) {
+    clearInterval(chunkIntervalRef.current);
+    chunkIntervalRef.current = null;
+  }
+  
+  // Flush any remaining audio (don't wait for result, may timeout)
+  flushBufferAndUpload().catch(e => console.warn('Final flush failed:', e));
+  
+  // Wait a bit for last chunk to start uploading
+  await new Promise((r) => setTimeout(r, 1000));
+  
+  // Ask backend for final aggregation - backend will assemble all chunks it received
   try {
     if (sessionIdRef.current) {
-      const res = await api.post(`/whisper/session/${sessionIdRef.current}/finalize`);
+      setLoading(true);
+      console.debug('[whisper] Finalizing session:', sessionIdRef.current);
+      
+      const res = await api.post(`/whisper/session/${sessionIdRef.current}/finalize`, {}, {
+        timeout: 60000,
+      });
+      
+      console.debug('[whisper] Finalize response:', res?.data);
+      
       if (res?.data?.text) {
-        transcriptAllRef.current = res.data.text;
-        updateTranscription(res.data.text);
+        const finalText = normalizeText(res.data.text);
+        transcriptAllRef.current = finalText;
+        updateTranscription(finalText);
+        
+        // Call onTranscription callback with final text
+        if (onTranscription && finalText) {
+          onTranscription(finalText, { replace: autoInsert === 'replace' });
+          setLastInserted({ text: finalText, at: Date.now() });
+        }
+      } else {
+        // No text from finalize, try assembled chunks
+        const assembled = normalizeText(assembleChunks(sessionChunksRef.current));
+        if (assembled) {
+          transcriptAllRef.current = assembled;
+          updateTranscription(assembled);
+          if (onTranscription) {
+            onTranscription(assembled, { replace: autoInsert === 'replace' });
+            setLastInserted({ text: assembled, at: Date.now() });
+          }
+        } else {
+          console.warn('[whisper] No transcription available');
+          setError('Aucune transcription disponible');
+        }
       }
     }
-  } catch (e) {
-    console.warn('session finalize failed', e);
+  } catch (e: any) {
+    console.error('session finalize error:', e);
+    // Even if finalize fails, show what we have from chunks
+    const assembled = normalizeText(assembleChunks(sessionChunksRef.current));
+    if (assembled) {
+      transcriptAllRef.current = assembled;
+      updateTranscription(assembled);
+      if (onTranscription) {
+        onTranscription(assembled, { replace: autoInsert === 'replace' });
+        setLastInserted({ text: assembled, at: Date.now() });
+      }
+    } else {
+      setError('Échec de la finalisation: ' + (e?.message || 'unknown error'));
+    }
+  } finally {
+    setLoading(false);
   }
 
+  // Clean up audio resources
   try {
     const proc = processorRef.current;
     if (proc) {
@@ -350,9 +435,11 @@ await flushBufferAndUpload();
   streamRef.current = null;
   try { await audioContextRef.current?.close(); } catch {}
   audioContextRef.current = null;
-  setIsRecording(false);
 } catch (e) {
+  console.error('Stop recording error:', e);
   setError("Échec de l'arrêt de l'enregistrement");
+  setIsRecording(false);
+  setLoading(false);
 }
 };
 
@@ -367,6 +454,24 @@ await uploadBlob(f);
 
 return (
 <div className={`flow-card ${compact ? 'p-3' : 'p-4 max-w-2xl'} flow-border`}>
+{/* Language Selection */}
+{!compact && (
+  <div className="mb-3">
+    <select 
+      value={selectedLanguage} 
+      onChange={(e) => setSelectedLanguage(e.target.value)}
+      disabled={isRecording}
+      className="text-xs bg-background border border-input rounded px-2 py-1"
+    >
+      <option value="auto">🌍 Auto-détection</option>
+      <option value="fr">🇫🇷 Français</option>
+      <option value="en">🇺🇸 English</option>
+      <option value="es">🇪🇸 Español</option>
+      <option value="ar">🇸🇦 العربية</option>
+    </select>
+  </div>
+)}
+
 <div className="flex items-center justify-between">
 <div className="flex items-center gap-2">
 <Button type="button" size="sm" onClick={startRecording} disabled={isRecording} className="flex items-center gap-2">
@@ -410,9 +515,12 @@ return (
     </div>
   </div>
 
-  {/* <div className={`mt-3 text-sm whitespace-pre-wrap break-words text-muted-foreground ${compact ? 'max-h-20 overflow-auto' : ''}`}>
-    {transcription ?? '— aucune transcription —'}
-  </div> */}
+  {/* Show transcription text if available */}
+  {transcription && (
+    <div className={`mt-3 text-sm whitespace-pre-wrap break-words bg-muted/50 rounded p-2 ${compact ? 'max-h-20 overflow-auto' : 'max-h-32 overflow-auto'}`}>
+      {transcription}
+    </div>
+  )}
 </div>
 );
 }

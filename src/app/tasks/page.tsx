@@ -9,8 +9,6 @@ import {
   Clock,
   AlertCircle,
   TrendingUp,
-  Menu,
-  X,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -53,7 +51,6 @@ export default function TasksPage() {
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -131,7 +128,10 @@ export default function TasksPage() {
     setLoadingSuggestions(true);
     try {
       // This endpoint expects POST with a userId and optional maxSuggestions (see curl)
-      const userId = (session as any)?.user?.id || (session as any)?.userId || (session as any)?.id;
+      const userId =
+        (session as any)?.user?.id ||
+        (session as any)?.userId ||
+        (session as any)?.id;
       const body: any = { maxSuggestions: 3 };
       if (userId) body.userId = userId;
 
@@ -144,10 +144,16 @@ export default function TasksPage() {
         toast("Aucune suggestion trouvée");
       }
     } catch (err: any) {
-      console.error("Failed to fetch suggestions:", err, err?.response?.data ?? err?.message);
+      console.error(
+        "Failed to fetch suggestions:",
+        err,
+        err?.response?.data ?? err?.message
+      );
       // If backend returns 404 for POST, inform the developer to check method/path
       if (err?.response?.status === 404) {
-        toast.error("Endpoint introuvable (404). Vérifie l'URL et la méthode (POST attendu).");
+        toast.error(
+          "Endpoint introuvable (404). Vérifie l'URL et la méthode (POST attendu)."
+        );
       } else {
         toast.error("Impossible de récupérer les suggestions AI");
       }
@@ -162,7 +168,8 @@ export default function TasksPage() {
     if (s.includes("low") || s.includes("basse")) return TaskPriority.LOW;
     if (s.includes("high") || s.includes("haute")) return TaskPriority.HIGH;
     if (s.includes("urgent")) return TaskPriority.URGENT;
-    if (s.includes("normal") || s.includes("normale") || s === "normal") return TaskPriority.MEDIUM;
+    if (s.includes("normal") || s.includes("normale") || s === "normal")
+      return TaskPriority.MEDIUM;
     return TaskPriority.MEDIUM;
   };
 
@@ -241,59 +248,7 @@ export default function TasksPage() {
             >
               Suggestions AI
             </Button>
-        <div className="mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-card-foreground mb-1">
-                Task Management
-              </h1>
-              <p className="text-sm text-muted-foreground hidden sm:block">
-                Organize and track your tasks efficiently
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <div className="sm:hidden">
-                <button
-                  aria-label="Toggle menu"
-                  onClick={() => setMobileMenuOpen((v) => !v)}
-                  className="p-2 rounded-md"
-                >
-                  {mobileMenuOpen ? (
-                    <X className="h-5 w-5" />
-                  ) : (
-                    <Menu className="h-5 w-5" />
-                  )}
-                </button>
-              </div>
-
-              <div className="hidden sm:flex items-center gap-4">
-                <ViewSwitcher
-                  currentView={currentView}
-                  onViewChange={setCurrentView}
-                />
-                <Button onClick={() => setShowCreateForm(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Task
-                </Button>
-              </div>
-            </div>
-
           </div>
-
-          {/* Mobile menu */}
-          {mobileMenuOpen && (
-            <div className="mt-4 flex flex-col gap-2 sm:hidden">
-              <ViewSwitcher
-                currentView={currentView}
-                onViewChange={setCurrentView}
-              />
-              <Button onClick={() => setShowCreateForm(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                New Task
-              </Button>
-            </div>
-          )}
         </div>
 
         {/* Stats Cards */}
@@ -361,14 +316,20 @@ export default function TasksPage() {
                 <Badge>{suggestions.length}</Badge>
               </div>
               <div>
-                <Button size="sm" variant="ghost" onClick={() => setShowSuggestions(false)}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowSuggestions(false)}
+                >
                   Fermer
                 </Button>
               </div>
             </div>
 
             {suggestions.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Aucune suggestion pour le moment.</p>
+              <p className="text-sm text-muted-foreground">
+                Aucune suggestion pour le moment.
+              </p>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {suggestions.map((s, idx) => (
@@ -376,11 +337,24 @@ export default function TasksPage() {
                     <div className="flex items-start justify-between">
                       <div>
                         <h4 className="font-semibold">{s.title}</h4>
-                        {s.description && <p className="text-sm text-muted-foreground">{s.description}</p>}
-                        {s.reason && <p className="mt-2 text-xs text-muted-foreground">{s.reason}</p>}
+                        {s.description && (
+                          <p className="text-sm text-muted-foreground">
+                            {s.description}
+                          </p>
+                        )}
+                        {s.reason && (
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            {s.reason}
+                          </p>
+                        )}
                       </div>
                       <div className="flex flex-col items-end space-y-2">
-                        <Button size="sm" onClick={() => createFromSuggestion(s)}>Ajouter</Button>
+                        <Button
+                          size="sm"
+                          onClick={() => createFromSuggestion(s)}
+                        >
+                          Ajouter
+                        </Button>
                       </div>
                     </div>
                   </div>
