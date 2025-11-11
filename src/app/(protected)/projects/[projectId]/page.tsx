@@ -27,12 +27,12 @@ async function getProject(projectId: string): Promise<Project | null> {
   try {
     console.log('Fetching project:', projectId);
     
-    // Try direct project endpoint first
+    // Try direct project endpoint first with caching
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/projects/${projectId}`, {
       headers: {
         'Authorization': `Bearer ${session.accessToken}`,
       },
-      cache: 'no-store',
+      next: { revalidate: 30 }, // Cache for 30 seconds
     });
 
     console.log('Direct project response status:', response.status);
@@ -50,7 +50,7 @@ async function getProject(projectId: string): Promise<Project | null> {
       headers: {
         'Authorization': `Bearer ${session.accessToken}`,
       },
-      cache: 'no-store',
+      next: { revalidate: 30 },
     });
 
     if (!teamsResponse.ok) {
@@ -59,24 +59,31 @@ async function getProject(projectId: string): Promise<Project | null> {
 
     const teams = await teamsResponse.json();
     
-    for (const team of teams) {
-      const projectsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/projects/by-team/${team.id}`, {
-        headers: {
-          'Authorization': `Bearer ${session.accessToken}`,
-        },
-        cache: 'no-store',
-      });
+    // Parallelize team project fetches
+    const projectPromises = teams.map(async (team: any) => {
+      try {
+        const projectsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/projects/by-team/${team.id}`, {
+          headers: {
+            'Authorization': `Bearer ${session.accessToken}`,
+          },
+          next: { revalidate: 30 },
+        });
 
-      if (projectsResponse.ok) {
-        const projects: Project[] = await projectsResponse.json();
-        const project = projects.find(p => p.id === projectId);
-        if (project) {
-          return { ...project, team };
+        if (projectsResponse.ok) {
+          const projects: Project[] = await projectsResponse.json();
+          const project = projects.find(p => p.id === projectId);
+          if (project) {
+            return { ...project, team };
+          }
         }
+      } catch (error) {
+        console.error(`Error fetching projects for team ${team.id}:`, error);
       }
-    }
+      return null;
+    });
 
-    return null;
+    const results = await Promise.all(projectPromises);
+    return results.find(p => p !== null) || null;
   } catch (error) {
     console.error('Failed to fetch project:', error);
     return null;
@@ -94,7 +101,7 @@ async function getCurrentUserTeams() {
       headers: {
         'Authorization': `Bearer ${session.accessToken}`,
       },
-      cache: 'no-store',
+      next: { revalidate: 30 }, // Cache for 30 seconds
     });
 
     if (!response.ok) {
@@ -139,7 +146,7 @@ async function getProjectTasks(projectId: string, searchParams: any): Promise<{ 
       headers: {
         'Authorization': `Bearer ${session.accessToken}`,
       },
-      cache: 'no-store',
+      next: { revalidate: 10 }, // Cache tasks for 10 seconds (shorter since they change more often)
     });
 
     if (!response.ok) {
@@ -175,18 +182,41 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   // Check if user can admin this project
   const isOwner = project.ownerId === currentUserId;
   
-  // For team admin check, we need to fetch team details separately if needed
-  // For now, assume non-owners can't admin (this can be improved later)
-  const canAdmin = isOwner;
+  // Check if user is team owner (if project is attached to a team)
+  let isTeamOwner = false;
+  if (project.teamId) {
+    // Find the team in userTeams to check the user's role
+    const team = userTeams.find((t: any) => t.id === project.teamId);
+    console.log('Team lookup:', {
+      projectTeamId: project.teamId,
+      teamFound: !!team,
+      teamMembers: team?.members,
+      currentUserId
+    });
+    if (team && team.members) {
+      const userMembership = team.members.find((m: any) => m.userId === currentUserId || m.id === currentUserId);
+      console.log('User membership check:', {
+        userMembership,
+        userRole: userMembership?.role
+      });
+      isTeamOwner = userMembership?.role === 'OWNER';
+    }
+  }
+  
+  // User can admin ONLY if they are project owner OR team owner
+  const canAdmin = isOwner || isTeamOwner;
 
-  // Since the backend already verified permissions and returned the project,
-  // we can trust that the user has read access. No additional check needed.
-  console.log('Project loaded successfully:', {
+  // Debug logging
+  console.log('Project permissions check:', {
     projectId: project.id,
     projectName: project.name,
+    currentUserId,
+    projectOwnerId: project.ownerId,
     isOwner,
+    projectTeamId: project.teamId,
+    isTeamOwner,
     canAdmin,
-    teamId: project.teamId
+    userTeamsCount: userTeams.length
   });
 
   return (

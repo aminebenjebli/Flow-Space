@@ -39,7 +39,7 @@ export function TeamSettings({ team, userRole, canManageTeam }: TeamSettingsProp
     });
   }, [team.name, team.description]);
 
-  const handleRoleChange = async (memberId: string, newRole: 'ADMIN' | 'MEMBER') => {
+  const handleRoleChange = async (memberId: string, newRole: 'MEMBER') => {
     console.log('DEBUG - handleRoleChange:', { memberId, newRole, teamId: team.id });
     setRoleLoading(memberId);
     setError('');
@@ -81,7 +81,7 @@ export function TeamSettings({ team, userRole, canManageTeam }: TeamSettingsProp
             <div className="text-center">
               <Shield className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
               <p className="text-muted-foreground">You don't have permission to view team settings</p>
-              <p className="text-sm text-muted-foreground mt-1">Only team administrators and owners can access this section</p>
+              <p className="text-sm text-muted-foreground mt-1">Only team owners can access this section</p>
             </div>
           </CardContent>
         </Card>
@@ -285,27 +285,10 @@ export function TeamSettings({ team, userRole, canManageTeam }: TeamSettingsProp
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {userRole === 'OWNER' && member.role !== 'OWNER' ? (
-                      <div className="flex items-center gap-2">
-                        <select
-                          value={member.role}
-                          onChange={(e) => handleRoleChange(member.userId || member.id, e.target.value as 'ADMIN' | 'MEMBER')}
-                          disabled={roleLoading === (member.userId || member.id)}
-                          className="text-xs px-2 py-1 border border-border rounded bg-background text-card-foreground focus:ring-2 focus:ring-primary focus:border-primary disabled:opacity-50"
-                        >
-                          <option value="MEMBER">Member</option>
-                          <option value="ADMIN">Admin</option>
-                        </select>
-                        {roleLoading === (member.userId || member.id) && (
-                          <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                        )}
-                      </div>
-                    ) : (
-                      <Badge variant={getRoleBadgeVariant(member.role)} className="text-xs">
-                        {getRoleIcon(member.role)}
-                        <span className="ml-1">{member.role}</span>
-                      </Badge>
-                    )}
+                    <Badge variant={getRoleBadgeVariant(member.role)} className="text-xs">
+                      {getRoleIcon(member.role)}
+                      <span className="ml-1">{member.role}</span>
+                    </Badge>
                   </div>
                 </div>
               ))}
