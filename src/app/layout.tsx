@@ -7,6 +7,7 @@ import SessionWarning from "@/components/auth/session-warning";
 import RegisterServiceWorker from "@/components/pwa/register-sw";
 import PWAInstallPrompt from "@/components/pwa/install-prompt";
 import PWADebugPanel from "@/components/pwa/debug-panel";
+import { OfflineStatusBar } from "@/components/offline/offline-status";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -49,6 +50,8 @@ export default function RootLayout({
       </head>
       <body className={`${inter.variable} font-sans antialiased`}>
         <Providers>
+          {/* Offline status indicator */}
+          <OfflineStatusBar compact />
           {children}
           <SessionWarning warningTimeMinutes={5} />
           <Toaster

@@ -4,16 +4,25 @@ import { useState } from "react";
 import { Plus, X, UserPlus, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { createTeam, createTeamWithMembers, inviteMember } from "@/app/(protected)/teams/actions";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useTeam } from "@/contexts/team-context";
 import { toast } from "react-hot-toast";
+import { useRouter } from "next/navigation";
 
 interface TeamMember {
   email: string;
-  role: 'ADMIN' | 'MEMBER';
+  role: "ADMIN" | "MEMBER";
 }
 
 export function CreateTeamDialog() {
+  const router = useRouter();
+  const { createTeam } = useTeam();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -23,7 +32,7 @@ export function CreateTeamDialog() {
   const [initialMembers, setInitialMembers] = useState<TeamMember[]>([]);
   const [currentMember, setCurrentMember] = useState<TeamMember>({
     email: "",
-    role: "MEMBER"
+    role: "MEMBER",
   });
   const [error, setError] = useState("");
 
@@ -33,24 +42,26 @@ export function CreateTeamDialog() {
       return;
     }
 
-    if (initialMembers.some(member => member.email === currentMember.email)) {
+    if (initialMembers.some((member) => member.email === currentMember.email)) {
       toast.error("Member already added");
       return;
     }
 
-    setInitialMembers(prev => [...prev, currentMember]);
+    setInitialMembers((prev) => [...prev, currentMember]);
     setCurrentMember({ email: "", role: "MEMBER" });
     toast.success("Member added to invitation list");
   };
 
   const removeMember = (email: string) => {
-    setInitialMembers(prev => prev.filter(member => member.email !== email));
+    setInitialMembers((prev) =>
+      prev.filter((member) => member.email !== email)
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    
+
     if (!formData.name.trim()) {
       setError("Team name is required");
       return;
@@ -59,50 +70,35 @@ export function CreateTeamDialog() {
     setIsLoading(true);
 
     try {
-      // Use the appropriate function based on whether we have initial members
-      const result = initialMembers.length > 0 
-        ? await createTeamWithMembers({
-            name: formData.name.trim(),
-            description: formData.description.trim() || undefined,
-            initialMembers: initialMembers,
-          })
-        : await createTeam({
-            name: formData.name.trim(),
-            description: formData.description.trim() || undefined,
-          });
+      // Create team using TeamContext (handles online/offline automatically)
+      const newTeam = await createTeam({
+        name: formData.name.trim(),
+        description: formData.description.trim() || undefined,
+      });
 
-      if (result?.error) {
-        setError(result.error);
+      if (!newTeam) {
+        // Team creation failed (error already shown by context)
         setIsLoading(false);
         return;
       }
 
-      // If team was created successfully and we have initial members, invite them
-      if (initialMembers.length > 0) {
-        toast.success(`Team created! Sending invitations to ${initialMembers.length} members...`);
-        
-        // Note: The team creation will redirect, but we can show a message about invitations
-        // In a real implementation, you might want to handle this on the server side
-        // or in the success callback after redirect
-      }
-
-      // Reset form
+      // Success - reset form and close modal
       setIsOpen(false);
       setFormData({ name: "", description: "" });
       setInitialMembers([]);
       setCurrentMember({ email: "", role: "MEMBER" });
 
-    } catch (error) {
-      // If it's a redirect error (success), don't show as error
-      if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
-        // This is actually a success - the redirect will happen
-        setIsOpen(false);
-        setFormData({ name: "", description: "" });
-        setInitialMembers([]);
-        setCurrentMember({ email: "", role: "MEMBER" });
-        return;
+      // If online and we have a real team ID (not temp), redirect to team page
+      if (!newTeam.id.startsWith("temp-")) {
+        router.push(`/teams/${newTeam.id}`);
+      } else {
+        // Offline mode - stay on teams page
+        router.push("/teams");
       }
+    } catch (error) {
+      console.error("Error creating team:", error);
       setError("Failed to create team");
+    } finally {
       setIsLoading(false);
     }
   };
@@ -122,14 +118,19 @@ export function CreateTeamDialog() {
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-muted-foreground mb-2">
+            <label
+              htmlFor="name"
+              className="block text-sm font-medium text-muted-foreground mb-2"
+            >
               Team Name *
             </label>
             <input
               id="name"
               type="text"
               value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, name: e.target.value }))
+              }
               placeholder="Enter team name"
               disabled={isLoading}
               className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-background text-foreground"
@@ -138,13 +139,21 @@ export function CreateTeamDialog() {
           </div>
 
           <div>
-            <label htmlFor="description" className="block text-sm font-medium text-muted-foreground mb-2">
+            <label
+              htmlFor="description"
+              className="block text-sm font-medium text-muted-foreground mb-2"
+            >
               Description
             </label>
             <textarea
               id="description"
               value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  description: e.target.value,
+                }))
+              }
               placeholder="Describe your team's purpose (optional)"
               disabled={isLoading}
               rows={3}
@@ -152,7 +161,7 @@ export function CreateTeamDialog() {
             />
           </div>
 
-            {/* Initial Members Section */}
+          {/* Initial Members Section */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="block text-sm font-medium text-muted-foreground">
@@ -161,23 +170,31 @@ export function CreateTeamDialog() {
               <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
                 📧 Email invitations will be sent
               </span>
-            </div>            {/* Add Member Form */}
+            </div>{" "}
+            {/* Add Member Form */}
             <div className="space-y-3 p-3 bg-gray-50 rounded-lg">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div className="md:col-span-2">
                   <input
                     type="email"
                     value={currentMember.email}
-                    onChange={(e) => setCurrentMember(prev => ({ ...prev, email: e.target.value }))}
+                    onChange={(e) =>
+                      setCurrentMember((prev) => ({
+                        ...prev,
+                        email: e.target.value,
+                      }))
+                    }
                     placeholder="Enter email address"
                     disabled={isLoading}
                     className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-background text-foreground"
                   />
                 </div>
-                
-                <Select 
-                  value={currentMember.role} 
-                  onValueChange={(value: 'ADMIN' | 'MEMBER') => setCurrentMember(prev => ({ ...prev, role: value }))}
+
+                <Select
+                  value={currentMember.role}
+                  onValueChange={(value: "ADMIN" | "MEMBER") =>
+                    setCurrentMember((prev) => ({ ...prev, role: value }))
+                  }
                   disabled={isLoading}
                 >
                   <SelectTrigger>
@@ -189,7 +206,7 @@ export function CreateTeamDialog() {
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <Button
                 type="button"
                 variant="outline"
@@ -201,7 +218,6 @@ export function CreateTeamDialog() {
                 Add to Invitation List
               </Button>
             </div>
-
             {/* Members List */}
             {initialMembers.length > 0 && (
               <div className="mt-3 space-y-2">
@@ -209,10 +225,15 @@ export function CreateTeamDialog() {
                   {initialMembers.length} member(s) will be invited:
                 </p>
                 {initialMembers.map((member, index) => (
-                  <div key={index} className="flex items-center justify-between p-2 bg-blue-50 rounded-lg">
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-2 bg-blue-50 rounded-lg"
+                  >
                     <div className="flex items-center gap-2">
                       <Mail className="h-4 w-4 text-blue-600" />
-                      <span className="text-sm font-medium">{member.email}</span>
+                      <span className="text-sm font-medium">
+                        {member.email}
+                      </span>
                       <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
                         {member.role}
                       </span>
@@ -233,11 +254,7 @@ export function CreateTeamDialog() {
             )}
           </div>
 
-          {error && (
-            <div className="text-destructive text-sm">
-              {error}
-            </div>
-          )}
+          {error && <div className="text-destructive text-sm">{error}</div>}
 
           <div className="flex items-center justify-end gap-3 pt-4">
             <Button
@@ -248,10 +265,7 @@ export function CreateTeamDialog() {
             >
               Cancel
             </Button>
-            <Button
-              type="submit"
-              disabled={isLoading || !formData.name.trim()}
-            >
+            <Button type="submit" disabled={isLoading || !formData.name.trim()}>
               {isLoading ? "Creating..." : "Create Team"}
             </Button>
           </div>

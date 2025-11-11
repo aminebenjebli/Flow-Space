@@ -20,22 +20,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-interface TaskFiltersProps {
-  filters?: QueryTaskDto;
-  onFiltersChange?: (filters: QueryTaskDto) => void;
-  hideProjectFilter?: boolean;
-}
-
-export function TaskFilters({ 
-  filters: externalFilters,
-  onFiltersChange,
-  hideProjectFilter = false 
-}: TaskFiltersProps = {}) {
-  const { filters: contextFilters, setFilters: setContextFilters, fetchTasks } = useTask();
-  
-  // Use external filters if provided, otherwise use context
-  const filters = externalFilters || contextFilters;
-  const setFilters = onFiltersChange || setContextFilters;
+export function TaskFilters() {
+  const { filters, setFilters, fetchTasks } = useTask();
   const [searchQuery, setSearchQuery] = useState(filters.search || "");
   const [showAdvanced, setShowAdvanced] = useState(false);
 

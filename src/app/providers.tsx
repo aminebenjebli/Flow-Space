@@ -7,6 +7,8 @@ import { ThemeProvider } from "next-themes";
 import { useState } from "react";
 import { ProfileProvider } from "@/contexts/profile-context";
 import { TaskProvider } from "@/contexts/task-context";
+import { ProjectProvider } from "@/contexts/project-context";
+import { TeamProvider } from "@/contexts/team-context";
 
 interface ProvidersProps {
   readonly children: React.ReactNode;
@@ -35,10 +37,14 @@ export function Providers({ children }: ProvidersProps) {
           storageKey="flowspace-theme"
         >
           <ProfileProvider>
-            <TaskProvider>
-              {children}
-              <ReactQueryDevtools initialIsOpen={false} />
-            </TaskProvider>
+            <TeamProvider>
+              <ProjectProvider>
+                <TaskProvider>
+                  {children}
+                  <ReactQueryDevtools initialIsOpen={false} />
+                </TaskProvider>
+              </ProjectProvider>
+            </TeamProvider>
           </ProfileProvider>
         </ThemeProvider>
       </QueryClientProvider>

@@ -1,14 +1,15 @@
 {
-  "name": "FlowSpace",
+  "name": "FlowSpace - Smart Task Manager",
   "short_name": "FlowSpace",
+  "description": "Collaborative productivity app with intelligent task management, real-time features, and full offline support",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#3b82f6",
-  "description": "Smart Task Management, Simplified",
   "scope": "/",
   "orientation": "portrait-primary",
   "lang": "en",
+  "categories": ["productivity", "business", "collaboration"],
   "icons": [
     {
       "src": "/icons/icon192.png",
@@ -22,5 +23,37 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "shortcuts": [
+    {
+      "name": "Create Task",
+      "short_name": "New Task",
+      "description": "Create a new task",
+      "url": "/tasks?action=create",
+      "icons": [
+        {
+          "src": "/icons/icon192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "View your dashboard",
+      "url": "/dashboard",
+      "icons": [
+        {
+          "src": "/icons/icon192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "display_override": ["window-controls-overlay", "standalone"],
+  "edge_side_panel": {
+    "preferred_width": 480
+  },
+  "offline_support": true,
+  "prefer_related_applications": false
 }

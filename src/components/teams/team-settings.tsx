@@ -1,19 +1,28 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge } from '@/components/ui';
-import { 
-  Settings, 
-  Save, 
-  AlertTriangle, 
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Badge,
+} from "@/components/ui";
+import {
+  Settings,
+  Save,
+  AlertTriangle,
   Trash2,
   Users,
   Crown,
   Shield,
-  User
-} from 'lucide-react';
-import { Team } from '@/types/team';
-import { LeaveTeamButton } from '@/components/teams/leave-team-button';
+  User,
+} from "lucide-react";
+import { Team } from "@/types/team";
+import { LeaveTeamButton } from "@/components/teams/leave-team-button";
+import { useTeam } from "@/contexts/team-context";
+import { useRouter } from "next/navigation";
 
 interface TeamSettingsProps {
   team: Team;
@@ -21,53 +30,70 @@ interface TeamSettingsProps {
   canManageTeam: boolean;
 }
 
-export function TeamSettings({ team, userRole, canManageTeam }: TeamSettingsProps) {
+export function TeamSettings({
+  team,
+  userRole,
+  canManageTeam,
+}: TeamSettingsProps) {
+  const router = useRouter();
+  const { updateTeam } = useTeam();
   const [formData, setFormData] = useState({
     name: team.name,
-    description: team.description || ''
+    description: team.description || "",
   });
   const [loading, setLoading] = useState(false);
   const [roleLoading, setRoleLoading] = useState<string | null>(null);
-  const [success, setSuccess] = useState('');
-  const [error, setError] = useState('');
+  const [success, setSuccess] = useState("");
+  const [error, setError] = useState("");
 
   // Reset form when team changes
   useEffect(() => {
     setFormData({
       name: team.name,
-      description: team.description || ''
+      description: team.description || "",
     });
   }, [team.name, team.description]);
 
-  const handleRoleChange = async (memberId: string, newRole: 'ADMIN' | 'MEMBER') => {
-    console.log('DEBUG - handleRoleChange:', { memberId, newRole, teamId: team.id });
+  const handleRoleChange = async (
+    memberId: string,
+    newRole: "ADMIN" | "MEMBER"
+  ) => {
+    console.log("DEBUG - handleRoleChange:", {
+      memberId,
+      newRole,
+      teamId: team.id,
+    });
     setRoleLoading(memberId);
-    setError('');
-    setSuccess('');
+    setError("");
+    setSuccess("");
 
     try {
-      const response = await fetch(`/api/teams/${team.id}/members/${memberId}/role`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ role: newRole })
-      });
+      const response = await fetch(
+        `/api/teams/${team.id}/members/${memberId}/role`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ role: newRole }),
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update member role');
+        throw new Error(errorData.error || "Failed to update member role");
       }
 
       setSuccess(`Member role updated successfully!`);
-      
+
       // Refresh the page after a delay to show the updated data
       setTimeout(() => {
         window.location.reload();
       }, 1500);
-
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update member role');
+      setError(
+        err instanceof Error ? err.message : "Failed to update member role"
+      );
     } finally {
       setRoleLoading(null);
     }
@@ -80,8 +106,12 @@ export function TeamSettings({ team, userRole, canManageTeam }: TeamSettingsProp
           <CardContent className="flex items-center justify-center py-8">
             <div className="text-center">
               <Shield className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-              <p className="text-muted-foreground">You don't have permission to view team settings</p>
-              <p className="text-sm text-muted-foreground mt-1">Only team administrators and owners can access this section</p>
+              <p className="text-muted-foreground">
+                You don't have permission to view team settings
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Only team administrators and owners can access this section
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -91,42 +121,41 @@ export function TeamSettings({ team, userRole, canManageTeam }: TeamSettingsProp
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
+    setError("");
+    setSuccess("");
 
     if (!formData.name.trim()) {
-      setError('Team name is required');
+      setError("Team name is required");
       return;
     }
 
     setLoading(true);
 
     try {
-      const response = await fetch(`/api/teams/${team.id}/settings`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: formData.name.trim(),
-          description: formData.description.trim() || null
-        })
+      // Use TeamContext to update team (handles online/offline automatically)
+      const updatedTeam = await updateTeam(team.id, {
+        name: formData.name.trim(),
+        description: formData.description.trim() || null,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update team settings');
+      if (!updatedTeam) {
+        // Update failed (error already shown by context)
+        setLoading(false);
+        return;
       }
 
-      setSuccess('Team settings updated successfully!');
-      
-      // Refresh the page after a delay to show the updated data
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
+      setSuccess("Team settings updated successfully!");
 
+      // Refresh after a delay if online (real team ID)
+      if (!updatedTeam.id.startsWith("temp-")) {
+        setTimeout(() => {
+          router.refresh();
+        }, 1500);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update team settings');
+      setError(
+        err instanceof Error ? err.message : "Failed to update team settings"
+      );
     } finally {
       setLoading(false);
     }
@@ -134,17 +163,23 @@ export function TeamSettings({ team, userRole, canManageTeam }: TeamSettingsProp
 
   const getRoleIcon = (role: string) => {
     switch (role) {
-      case 'OWNER': return <Crown className="h-4 w-4" />;
-      case 'ADMIN': return <Shield className="h-4 w-4" />;
-      default: return <User className="h-4 w-4" />;
+      case "OWNER":
+        return <Crown className="h-4 w-4" />;
+      case "ADMIN":
+        return <Shield className="h-4 w-4" />;
+      default:
+        return <User className="h-4 w-4" />;
     }
   };
 
   const getRoleBadgeVariant = (role: string) => {
     switch (role) {
-      case 'OWNER': return 'default';
-      case 'ADMIN': return 'secondary';
-      default: return 'outline';
+      case "OWNER":
+        return "default";
+      case "ADMIN":
+        return "secondary";
+      default:
+        return "outline";
     }
   };
 
@@ -164,14 +199,19 @@ export function TeamSettings({ team, userRole, canManageTeam }: TeamSettingsProp
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-card-foreground mb-2">
+              <label
+                htmlFor="name"
+                className="block text-sm font-medium text-card-foreground mb-2"
+              >
                 Team Name *
               </label>
               <input
                 id="name"
                 type="text"
                 value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, name: e.target.value }))
+                }
                 placeholder="Enter team name"
                 disabled={loading}
                 className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-background text-card-foreground"
@@ -181,13 +221,21 @@ export function TeamSettings({ team, userRole, canManageTeam }: TeamSettingsProp
             </div>
 
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-card-foreground mb-2">
+              <label
+                htmlFor="description"
+                className="block text-sm font-medium text-card-foreground mb-2"
+              >
                 Description
               </label>
               <textarea
                 id="description"
                 value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    description: e.target.value,
+                  }))
+                }
                 placeholder="Describe your team's purpose and goals"
                 disabled={loading}
                 rows={3}
@@ -213,13 +261,17 @@ export function TeamSettings({ team, userRole, canManageTeam }: TeamSettingsProp
               </div>
             )}
 
-            <button 
-              type="submit" 
-              disabled={loading || (formData.name === team.name && formData.description === (team.description || ''))}
+            <button
+              type="submit"
+              disabled={
+                loading ||
+                (formData.name === team.name &&
+                  formData.description === (team.description || ""))
+              }
               className="inline-flex items-center px-4 py-2 bg-primary hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground text-primary-foreground rounded-lg transition-colors"
             >
               <Save className="h-4 w-4 mr-2" />
-              {loading ? 'Saving...' : 'Save Changes'}
+              {loading ? "Saving..." : "Save Changes"}
             </button>
           </form>
         </CardContent>
@@ -232,9 +284,7 @@ export function TeamSettings({ team, userRole, canManageTeam }: TeamSettingsProp
             <Users className="h-5 w-5" />
             Team Information
           </CardTitle>
-          <CardDescription>
-            Basic information about your team
-          </CardDescription>
+          <CardDescription>Basic information about your team</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -243,10 +293,10 @@ export function TeamSettings({ team, userRole, canManageTeam }: TeamSettingsProp
                 Created
               </label>
               <p className="text-sm text-muted-foreground">
-                {new Date(team.createdAt).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long', 
-                  day: 'numeric'
+                {new Date(team.createdAt).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
                 })}
               </p>
             </div>
@@ -254,9 +304,12 @@ export function TeamSettings({ team, userRole, canManageTeam }: TeamSettingsProp
               <label className="block text-sm font-medium text-card-foreground mb-1">
                 Your Role
               </label>
-              <Badge variant={getRoleBadgeVariant(userRole || 'MEMBER')} className="text-xs">
-                {getRoleIcon(userRole || 'MEMBER')}
-                <span className="ml-1">{userRole || 'MEMBER'}</span>
+              <Badge
+                variant={getRoleBadgeVariant(userRole || "MEMBER")}
+                className="text-xs"
+              >
+                {getRoleIcon(userRole || "MEMBER")}
+                <span className="ml-1">{userRole || "MEMBER"}</span>
               </Badge>
             </div>
           </div>
@@ -268,16 +321,21 @@ export function TeamSettings({ team, userRole, canManageTeam }: TeamSettingsProp
             </label>
             <div className="space-y-2">
               {team.members?.map((member, index) => (
-                <div key={member.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border">
+                <div
+                  key={member.id}
+                  className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border"
+                >
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
                       <span className="text-sm font-medium text-primary">
-                        {member.name?.charAt(0)?.toUpperCase() || member.email?.charAt(0)?.toUpperCase() || '?'}
+                        {member.name?.charAt(0)?.toUpperCase() ||
+                          member.email?.charAt(0)?.toUpperCase() ||
+                          "?"}
                       </span>
                     </div>
                     <div>
                       <p className="text-sm font-medium text-card-foreground">
-                        {member.name || 'Unknown'}
+                        {member.name || "Unknown"}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {member.email}
@@ -285,12 +343,19 @@ export function TeamSettings({ team, userRole, canManageTeam }: TeamSettingsProp
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {userRole === 'OWNER' && member.role !== 'OWNER' ? (
+                    {userRole === "OWNER" && member.role !== "OWNER" ? (
                       <div className="flex items-center gap-2">
                         <select
                           value={member.role}
-                          onChange={(e) => handleRoleChange(member.userId || member.id, e.target.value as 'ADMIN' | 'MEMBER')}
-                          disabled={roleLoading === (member.userId || member.id)}
+                          onChange={(e) =>
+                            handleRoleChange(
+                              member.userId || member.id,
+                              e.target.value as "ADMIN" | "MEMBER"
+                            )
+                          }
+                          disabled={
+                            roleLoading === (member.userId || member.id)
+                          }
                           className="text-xs px-2 py-1 border border-border rounded bg-background text-card-foreground focus:ring-2 focus:ring-primary focus:border-primary disabled:opacity-50"
                         >
                           <option value="MEMBER">Member</option>
@@ -301,7 +366,10 @@ export function TeamSettings({ team, userRole, canManageTeam }: TeamSettingsProp
                         )}
                       </div>
                     ) : (
-                      <Badge variant={getRoleBadgeVariant(member.role)} className="text-xs">
+                      <Badge
+                        variant={getRoleBadgeVariant(member.role)}
+                        className="text-xs"
+                      >
                         {getRoleIcon(member.role)}
                         <span className="ml-1">{member.role}</span>
                       </Badge>
@@ -315,7 +383,7 @@ export function TeamSettings({ team, userRole, canManageTeam }: TeamSettingsProp
       </Card>
 
       {/* Danger Zone - Only show to owners */}
-      {userRole === 'OWNER' && (
+      {userRole === "OWNER" && (
         <Card className="border-red-200 dark:border-red-800">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-red-600">
@@ -335,7 +403,8 @@ export function TeamSettings({ team, userRole, canManageTeam }: TeamSettingsProp
                       Delete Team
                     </h4>
                     <p className="text-sm text-red-700 dark:text-red-300 mt-1">
-                      Permanently delete this team and all associated data. This action cannot be undone.
+                      Permanently delete this team and all associated data. This
+                      action cannot be undone.
                     </p>
                   </div>
                   <button
@@ -354,9 +423,9 @@ export function TeamSettings({ team, userRole, canManageTeam }: TeamSettingsProp
       )}
 
       {/* Leave Team Section - for non-owners */}
-      {userRole !== 'OWNER' && (
-        <LeaveTeamButton 
-          teamId={team.id} 
+      {userRole !== "OWNER" && (
+        <LeaveTeamButton
+          teamId={team.id}
           teamName={team.name}
           userRole={userRole}
         />

@@ -1,0 +1,434 @@
+// FlowSpace Service Worker - Enhanced offline support
+const CACHE_PREFIX = "flowspace";
+const CACHE_VERSION = "v3";
+const STATIC_CACHE = `${CACHE_PREFIX}-static-${CACHE_VERSION}`;
+const API_CACHE = `${CACHE_PREFIX}-api-${CACHE_VERSION}`;
+const DYNAMIC_CACHE = `${CACHE_PREFIX}-dynamic-${CACHE_VERSION}`;
+
+// Cache duration constants (in milliseconds)
+const CACHE_DURATIONS = {
+  STATIC: 7 * 24 * 60 * 60 * 1000,   // 7 days
+  API: 5 * 60 * 1000,                // 5 minutes
+  DYNAMIC: 24 * 60 * 60 * 1000,      // 24 hours
+};
+
+// Enhanced resources to precache
+const PRECACHE_URLS = [
+  "/",
+  "/dashboard",
+  "/tasks",
+  "/projects", 
+  "/teams",
+  "/profile",
+  "/offline.html",
+  "/favicon.ico",
+  "/manifest.json",
+  "/icons/icon192.png",
+  "/icons/icon512.png",
+];
+
+// Enhanced API patterns for caching
+const API_PATTERNS = [
+  /\/api\/auth\/session/,
+  /\/api\/tasks/,
+  /\/api\/projects/,
+  /\/api\/teams/,
+  /\/api\/profile/,
+  /\/api\/users/,
+  /\/whisper\/transcribe/,
+];
+
+// Static resources patterns
+const STATIC_PATTERNS = [
+  /\/_next\/static\//,
+  /\.(?:js|css|png|jpg|jpeg|svg|ico|woff|woff2|ttf|eot)$/,
+  /\/icons\//,
+];
+
+self.addEventListener("install", (event) => {
+  console.log("[SW] Installing enhanced service worker");
+  
+  event.waitUntil(
+    (async () => {
+      try {
+        // Cache static assets
+        const staticCache = await caches.open(STATIC_CACHE);
+        await staticCache.addAll(PRECACHE_URLS);
+        console.log("[SW] Static assets cached");
+
+        // Initialize other caches
+        await caches.open(API_CACHE);
+        await caches.open(DYNAMIC_CACHE);
+        
+        // Skip waiting to activate immediately
+        await self.skipWaiting();
+        console.log("[SW] Service worker installed successfully");
+      } catch (error) {
+        console.error("[SW] Installation failed:", error);
+      }
+    })()
+  );
+});
+
+self.addEventListener("activate", (event) => {
+  console.log("[SW] Activating enhanced service worker");
+
+  event.waitUntil(
+    (async () => {
+      try {
+        // Clean up old caches
+        const cacheNames = await caches.keys();
+        const oldCaches = cacheNames.filter(name => 
+          name.startsWith(CACHE_PREFIX) && 
+          !name.includes(CACHE_VERSION)
+        );
+        
+        await Promise.all(
+          oldCaches.map(cache => {
+            console.log("[SW] Deleting old cache:", cache);
+            return caches.delete(cache);
+          })
+        );
+
+        // Take control of all clients immediately
+        await self.clients.claim();
+        console.log("[SW] Service worker activated");
+      } catch (error) {
+        console.error("[SW] Activation failed:", error);
+      }
+    })()
+  );
+});
+
+self.addEventListener("fetch", (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+
+  // Skip non-GET requests for now (handled by offline API)
+  if (request.method !== "GET") {
+    return;
+  }
+
+  // Skip chrome-extension and other non-http requests
+  if (!url.protocol.startsWith('http')) {
+    return;
+  }
+
+  console.log("[SW] Fetch:", request.url);
+
+  // Route different types of requests
+  if (isStaticAsset(url)) {
+    event.respondWith(handleStaticAsset(request));
+  } else if (isApiRequest(request)) {
+    event.respondWith(handleApiRequest(request));
+  } else if (isPageRequest(url)) {
+    event.respondWith(handlePageRequest(request));
+  } else {
+    event.respondWith(handleDynamicRequest(request));
+  }
+});
+
+// Static Asset Handling - Cache first with fallback
+async function handleStaticAsset(request) {
+  try {
+    // Try cache first
+    const cache = await caches.open(STATIC_CACHE);
+    const cached = await cache.match(request);
+    
+    if (cached && !isExpired(cached, CACHE_DURATIONS.STATIC)) {
+      console.log("[SW] Serving static asset from cache:", request.url);
+      return cached;
+    }
+
+    // Try network with cache update
+    try {
+      const response = await fetch(request);
+      if (response.ok) {
+        // Update cache with fresh content
+        const responseClone = response.clone();
+        await cache.put(request, responseClone);
+        console.log("[SW] Updated static cache:", request.url);
+      }
+      return response;
+    } catch (networkError) {
+      // Network failed, serve stale cache if available
+      if (cached) {
+        console.log("[SW] Serving stale static asset:", request.url);
+        return cached;
+      }
+      throw networkError;
+    }
+  } catch (error) {
+    console.log("[SW] Static asset fetch failed:", request.url, error);
+    
+    // Return offline fallback for critical assets
+    if (request.url.includes('manifest.json')) {
+      return new Response(JSON.stringify({
+        name: 'FlowSpace',
+        short_name: 'FlowSpace',
+        start_url: '/',
+        display: 'standalone',
+        theme_color: '#3b82f6',
+        background_color: '#ffffff'
+      }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    
+    throw error;
+  }
+}
+
+// API Request Handling - Network first with cache fallback
+async function handleApiRequest(request) {
+  const cache = await caches.open(API_CACHE);
+  
+  try {
+    console.log("[SW] API request:", request.url);
+    const response = await fetch(request);
+    
+    if (response.ok) {
+      // Cache successful API responses
+      const responseClone = response.clone();
+      await cache.put(request, responseClone);
+      console.log("[SW] Cached API response:", request.url);
+      return response;
+    }
+    
+    throw new Error(`API error: ${response.status}`);
+  } catch (networkError) {
+    console.log("[SW] API network failed, trying cache:", request.url);
+    
+    // Network failed, try cache
+    const cached = await cache.match(request);
+    if (cached && !isExpired(cached, CACHE_DURATIONS.API)) {
+      console.log("[SW] Serving API response from cache:", request.url);
+      
+      // Add headers to indicate this is cached data
+      const response = new Response(cached.body, {
+        status: cached.status,
+        statusText: cached.statusText,
+        headers: {
+          ...Object.fromEntries(cached.headers.entries()),
+          "X-Served-From": "cache",
+          "X-Cache-Date": new Date().toISOString(),
+        },
+      });
+      return response;
+    }
+    
+    // No cache available, return offline response
+    return new Response(
+      JSON.stringify({
+        error: "No internet connection",
+        offline: true,
+        message: "This data is not available offline",
+        timestamp: new Date().toISOString()
+      }),
+      {
+        status: 503,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+  }
+}
+
+// Page Request Handling - Network first with offline fallback
+async function handlePageRequest(request) {
+  try {
+    // Try network first
+    const response = await fetch(request);
+    if (response.ok) {
+      // Cache successful page responses
+      const cache = await caches.open(DYNAMIC_CACHE);
+      const responseClone = response.clone();
+      await cache.put(request, responseClone);
+      console.log("[SW] Cached page:", request.url);
+      return response;
+    }
+    throw new Error(`Page error: ${response.status}`);
+  } catch (networkError) {
+    console.log("[SW] Page network failed:", request.url);
+    
+    // Try cache
+    const cache = await caches.open(DYNAMIC_CACHE);
+    const cached = await cache.match(request);
+    if (cached) {
+      console.log("[SW] Serving page from cache:", request.url);
+      return cached;
+    }
+    
+    // Return offline page
+    console.log("[SW] Serving offline page for:", request.url);
+    return caches.match('/offline.html');
+  }
+}
+
+// Dynamic Content Handling - Cache with expiration
+async function handleDynamicRequest(request) {
+  const cache = await caches.open(DYNAMIC_CACHE);
+  
+  try {
+    // Try network first
+    const response = await fetch(request);
+    if (response.ok) {
+      // Cache dynamic content
+      const responseClone = response.clone();
+      await cache.put(request, responseClone);
+      console.log("[SW] Cached dynamic content:", request.url);
+      return response;
+    }
+    throw new Error(`Dynamic content error: ${response.status}`);
+  } catch (networkError) {
+    // Try cache as fallback
+    const cached = await cache.match(request);
+    if (cached && !isExpired(cached, CACHE_DURATIONS.DYNAMIC)) {
+      console.log("[SW] Serving dynamic content from cache:", request.url);
+      return cached;
+    }
+    
+    // No suitable cache, let the error propagate
+    throw networkError;
+  }
+}
+
+// Background sync for offline operations
+self.addEventListener("sync", (event) => {
+  console.log("[SW] Background sync triggered:", event.tag);
+  
+  if (event.tag === "background-sync") {
+    event.waitUntil(performBackgroundSync());
+  }
+});
+
+async function performBackgroundSync() {
+  try {
+    console.log("[SW] Performing background sync...");
+    
+    // Post message to all clients to trigger sync
+    const clients = await self.clients.matchAll();
+    for (const client of clients) {
+      client.postMessage({
+        type: "BACKGROUND_SYNC",
+        timestamp: Date.now()
+      });
+    }
+    
+    console.log("[SW] Background sync completed");
+  } catch (error) {
+    console.error("[SW] Background sync failed:", error);
+  }
+}
+
+// Push notifications support
+self.addEventListener("push", (event) => {
+  if (event.data) {
+    const data = event.data.json();
+    console.log("[SW] Push notification received:", data);
+    
+    event.waitUntil(
+      self.registration.showNotification(data.title || "FlowSpace", {
+        body: data.body || "You have a new notification",
+        icon: "/icons/icon192.png",
+        badge: "/icons/icon192.png",
+        tag: data.tag || "default",
+        data: data.data || {}
+      })
+    );
+  }
+});
+
+// Notification click handling
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  
+  event.waitUntil(
+    self.clients.matchAll().then((clients) => {
+      // Focus existing client if available
+      const client = clients.find(c => c.url.includes(self.location.origin));
+      if (client) {
+        return client.focus();
+      }
+      // Open new window
+      return self.clients.openWindow("/");
+    })
+  );
+});
+
+// Message handling from clients
+self.addEventListener("message", (event) => {
+  const { data } = event;
+  console.log("[SW] Message received:", data);
+  
+  if (data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  } else if (data.type === "CLEAR_CACHE") {
+    event.waitUntil(clearAllCaches());
+  } else if (data.type === "FORCE_SYNC") {
+    event.waitUntil(performBackgroundSync());
+  }
+});
+
+// Utility Functions
+function isStaticAsset(url) {
+  return (
+    url.pathname.startsWith('/_next/static/') ||
+    url.pathname.startsWith('/icons/') ||
+    url.pathname === '/manifest.json' ||
+    url.pathname === '/favicon.ico' ||
+    url.pathname.endsWith('.css') ||
+    url.pathname.endsWith('.js') ||
+    url.pathname.endsWith('.png') ||
+    url.pathname.endsWith('.svg') ||
+    url.pathname.endsWith('.woff2') ||
+    url.pathname.endsWith('.ttf') ||
+    url.pathname.endsWith('.eot')
+  );
+}
+
+function isApiRequest(request) {
+  return API_PATTERNS.some((pattern) => pattern.test(request.url));
+}
+
+function isPageRequest(url) {
+  return (
+    url.origin === self.location.origin &&
+    !isStaticAsset(url) &&
+    !isApiRequest({ url: url.href }) &&
+    (url.pathname === '/' || !url.pathname.includes('.'))
+  );
+}
+
+function isExpired(response, maxAge) {
+  const dateHeader = response.headers.get('date');
+  if (!dateHeader) return true;
+  
+  const date = new Date(dateHeader);
+  const now = new Date();
+  return (now.getTime() - date.getTime()) > maxAge;
+}
+
+async function clearAllCaches() {
+  try {
+    const cacheNames = await caches.keys();
+    await Promise.all(
+      cacheNames
+        .filter(name => name.startsWith(CACHE_PREFIX))
+        .map(name => caches.delete(name))
+    );
+    console.log("[SW] All caches cleared");
+  } catch (error) {
+    console.error("[SW] Failed to clear caches:", error);
+  }
+}
+
+// Error handling
+self.addEventListener("error", (event) => {
+  console.error("[SW] Service worker error:", event.error);
+});
+
+self.addEventListener("unhandledrejection", (event) => {
+  console.error("[SW] Service worker unhandled rejection:", event.reason);
+});
+
+console.log("[SW] Enhanced service worker script loaded");

@@ -29,11 +29,11 @@ interface ProjectTasksManagerProps {
   isProjectAdmin?: boolean;
 }
 
-export function ProjectTasksManager({ 
-  projectId, 
-  projectName, 
-  isProjectAdmin = false 
-}: ProjectTasksManagerProps) {
+export function ProjectTasksManager({
+  projectId,
+  projectName,
+  isProjectAdmin = false,
+}: Readonly<ProjectTasksManagerProps>) {
   const { data: session } = useSession();
   const {
     tasks,
@@ -121,18 +121,6 @@ export function ProjectTasksManager({
     setViewingTask(task);
   };
 
-  const handleTaskUpdated = () => {
-    fetchTasks();
-    fetchStats();
-    setViewingTask(null);
-  };
-
-  const handleTaskDeleted = () => {
-    fetchTasks();
-    fetchStats();
-    setViewingTask(null);
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -156,8 +144,11 @@ export function ProjectTasksManager({
         </div>
 
         <div className="flex items-center space-x-2">
-          <ViewSwitcher currentView={currentView} onViewChange={setCurrentView} />
-          <Button 
+          <ViewSwitcher
+            currentView={currentView}
+            onViewChange={setCurrentView}
+          />
+          <Button
             onClick={() => setShowCreateForm(true)}
             className="flex items-center gap-2"
           >
@@ -172,7 +163,9 @@ export function ProjectTasksManager({
         <div className="flow-card p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Total Tasks</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                Total Tasks
+              </p>
               <p className="text-2xl font-bold">{stats?.total || 0}</p>
             </div>
             <CheckSquare className="h-4 w-4 text-muted-foreground" />
@@ -183,7 +176,9 @@ export function ProjectTasksManager({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Todo</p>
-              <p className="text-2xl font-bold text-blue-600">{stats?.todo || 0}</p>
+              <p className="text-2xl font-bold text-blue-600">
+                {stats?.todo || 0}
+              </p>
             </div>
             <Clock className="h-4 w-4 text-blue-600" />
           </div>
@@ -193,7 +188,9 @@ export function ProjectTasksManager({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Done</p>
-              <p className="text-2xl font-bold text-green-600">{stats?.done || 0}</p>
+              <p className="text-2xl font-bold text-green-600">
+                {stats?.done || 0}
+              </p>
             </div>
             <TrendingUp className="h-4 w-4 text-green-600" />
           </div>
@@ -202,8 +199,12 @@ export function ProjectTasksManager({
         <div className="flow-card p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">In Progress</p>
-              <p className="text-2xl font-bold text-red-600">{stats?.inProgress || 0}</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                In Progress
+              </p>
+              <p className="text-2xl font-bold text-red-600">
+                {stats?.inProgress || 0}
+              </p>
             </div>
             <AlertCircle className="h-4 w-4 text-red-600" />
           </div>
@@ -211,18 +212,15 @@ export function ProjectTasksManager({
       </div>
 
       {/* Filters */}
-      <TaskFilters 
-        filters={filters} 
-        onFiltersChange={setFilters}
-        hideProjectFilter={true} // Hide project filter since we're already in a project context
-      />
+      <TaskFilters />
 
       {/* Bulk Actions */}
       {selectedTasks.length > 0 && (
         <div className="flow-card p-4">
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              {selectedTasks.length} task{selectedTasks.length !== 1 ? 's' : ''} selected
+              {selectedTasks.length} task{selectedTasks.length === 1 ? "" : "s"}{" "}
+              selected
             </p>
             <div className="flex items-center space-x-2">
               <Button
@@ -265,7 +263,9 @@ export function ProjectTasksManager({
               >
                 <CheckSquare className="h-4 w-4" />
                 <span>
-                  {selectedTasks.length === tasks.length ? 'Deselect All' : 'Select All'}
+                  {selectedTasks.length === tasks.length
+                    ? "Deselect All"
+                    : "Select All"}
                 </span>
               </Button>
             </div>
@@ -317,7 +317,12 @@ export function ProjectTasksManager({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setFilters({ ...filters, page: Math.max(1, (filters.page || 1) - 1) })}
+            onClick={() =>
+              setFilters({
+                ...filters,
+                page: Math.max(1, (filters.page || 1) - 1),
+              })
+            }
             disabled={pagination.page === 1}
           >
             Previous
@@ -328,7 +333,12 @@ export function ProjectTasksManager({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setFilters({ ...filters, page: Math.min(pagination.totalPages, (filters.page || 1) + 1) })}
+            onClick={() =>
+              setFilters({
+                ...filters,
+                page: Math.min(pagination.totalPages, (filters.page || 1) + 1),
+              })
+            }
             disabled={pagination.page === pagination.totalPages}
           >
             Next
@@ -337,7 +347,11 @@ export function ProjectTasksManager({
       )}
 
       {/* Task Form Modal */}
-      <Modal isOpen={showCreateForm} onClose={handleCloseForm} title={editingTask ? "Edit Task" : "Create Task"}>
+      <Modal
+        isOpen={showCreateForm}
+        onClose={handleCloseForm}
+        title={editingTask ? "Edit Task" : "Create Task"}
+      >
         <TaskForm
           task={editingTask || undefined}
           onSuccess={handleTaskCreated}

@@ -5,41 +5,125 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Offline - FlowSpace</title>
     <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
       body {
-        font-family: system-ui, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
         display: flex;
         align-items: center;
         justify-content: center;
-        height: 100vh;
-        margin: 0;
-        background: #f6f8fb;
-        color: #0f172a;
+        color: white;
       }
-      .card {
-        max-width: 480px;
+
+      .offline-container {
         text-align: center;
-        padding: 24px;
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.06);
+        max-width: 500px;
+        padding: 2rem;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
       }
+
+      .offline-icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+      }
+
       h1 {
-        margin: 0 0 8px;
+        font-size: 2rem;
+        margin-bottom: 1rem;
+        font-weight: 600;
       }
+
       p {
-        margin: 0 0 12px;
-        color: #475569;
+        font-size: 1.1rem;
+        line-height: 1.6;
+        margin-bottom: 2rem;
+        opacity: 0.9;
+      }
+
+      .retry-btn {
+        background: #3b82f6;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: background 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+      }
+
+      .retry-btn:hover {
+        background: #2563eb;
+      }
+
+      .features {
+        margin-top: 2rem;
+        text-align: left;
+      }
+
+      .feature-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+      }
+
+      .feature-icon {
+        margin-right: 0.5rem;
       }
     </style>
   </head>
   <body>
-    <div class="card">
-      <h1>You are offline</h1>
+    <div class="offline-container">
+      <div class="offline-icon">📵</div>
+      <h1>You're Offline</h1>
       <p>
-        Some features may be unavailable while you're offline. Please check your
-        connection.
+        Don't worry! FlowSpace works offline. You can still view your cached
+        data and any changes you make will sync when you're back online.
       </p>
-      <a href="/" style="color: #3b82f6; text-decoration: none">Return home</a>
+
+      <a href="/" class="retry-btn">Return Home</a>
+
+      <div class="features">
+        <div class="feature-item">
+          <span class="feature-icon">✅</span>
+          View cached tasks and projects
+        </div>
+        <div class="feature-item">
+          <span class="feature-icon">✅</span>
+          Create and edit content offline
+        </div>
+        <div class="feature-item">
+          <span class="feature-icon">✅</span>
+          Automatic sync when online
+        </div>
+      </div>
     </div>
+
+    <script>
+      // Check for network connectivity
+      function checkOnline() {
+        if (navigator.onLine) {
+          window.location.reload();
+        }
+      }
+
+      // Listen for online events
+      window.addEventListener("online", checkOnline);
+
+      // Periodically check connectivity
+      setInterval(checkOnline, 30000);
+    </script>
   </body>
 </html>

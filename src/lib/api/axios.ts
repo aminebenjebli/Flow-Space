@@ -6,6 +6,7 @@ import axios, {
 } from "axios";
 import { getSession } from "next-auth/react";
 import { TaskStatus } from "@/types/index";
+import { useEffect } from "react";
 
 // Extend Axios types to include _retry
 declare module "axios" {
@@ -104,6 +105,11 @@ axiosInstance.interceptors.response.use(
       } catch (refreshError) {
         console.error("Token refresh failed:", refreshError);
         // Redirect to login or handle logout
+        useEffect(() => {
+          if (typeof window !== "undefined") {
+            window.location.href = "/login";
+          }
+        });
         if (typeof window !== "undefined") {
           window.location.href = "/login";
         }

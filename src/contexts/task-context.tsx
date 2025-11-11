@@ -152,9 +152,9 @@ export function TaskProvider({
     async (data: CreateTaskDto): Promise<Task | null> => {
       setIsLoading(true);
       try {
-        const taskData = { 
-          ...data, 
-          ...(projectId && { projectId }) 
+        const taskData = {
+          ...data,
+          ...(projectId && { projectId }),
         };
         console.log("Creating task with data:", taskData);
         const response = await api.tasks.create(taskData);
@@ -321,12 +321,9 @@ export function TaskProvider({
       const response = await api.tasks.getStats();
       console.log("Stats response:", response);
 
-      let statsData: TaskStatsResponse;
-      if (response.data) {
-        statsData = response.data as TaskStatsResponse;
-      } else {
-        statsData = response as unknown as TaskStatsResponse;
-      }
+      // The api.tasks.getStats() already returns ApiResponse<TaskStatsResponse>
+      // So response.data contains the actual stats data
+      const statsData: TaskStatsResponse = response.data;
 
       console.log("Processed stats data:", statsData);
       setStats(statsData);
