@@ -167,48 +167,6 @@ export function ProjectTasksManager({
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <div className="flow-card p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Total Tasks</p>
-              <p className="text-2xl font-bold">{stats?.total || 0}</p>
-            </div>
-            <CheckSquare className="h-4 w-4 text-muted-foreground" />
-          </div>
-        </div>
-
-        <div className="flow-card p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Todo</p>
-              <p className="text-2xl font-bold text-blue-600">{stats?.todo || 0}</p>
-            </div>
-            <Clock className="h-4 w-4 text-blue-600" />
-          </div>
-        </div>
-
-        <div className="flow-card p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Done</p>
-              <p className="text-2xl font-bold text-green-600">{stats?.done || 0}</p>
-            </div>
-            <TrendingUp className="h-4 w-4 text-green-600" />
-          </div>
-        </div>
-
-        <div className="flow-card p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">In Progress</p>
-              <p className="text-2xl font-bold text-red-600">{stats?.inProgress || 0}</p>
-            </div>
-            <AlertCircle className="h-4 w-4 text-red-600" />
-          </div>
-        </div>
-      </div>
 
       {/* Filters */}
       <TaskFilters 

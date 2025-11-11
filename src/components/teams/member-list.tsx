@@ -45,8 +45,6 @@ export function MemberList({ members, teamId, canManage }: MemberListProps) {
     switch (role) {
       case 'OWNER':
         return <Crown className="h-4 w-4" />;
-      case 'ADMIN':
-        return <Shield className="h-4 w-4" />;
       default:
         return <User className="h-4 w-4" />;
     }
@@ -56,8 +54,6 @@ export function MemberList({ members, teamId, canManage }: MemberListProps) {
     switch (role) {
       case 'OWNER':
         return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400';
-      case 'ADMIN':
-        return 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400';
       default:
         return 'bg-secondary text-secondary-foreground';
     }

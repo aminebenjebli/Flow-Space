@@ -19,8 +19,8 @@ export async function PUT(
       return NextResponse.json({ error: 'Team ID and Member ID are required' }, { status: 400 });
     }
 
-    if (!body.role || !['ADMIN', 'MEMBER'].includes(body.role)) {
-      return NextResponse.json({ error: 'Valid role is required (ADMIN or MEMBER)' }, { status: 400 });
+    if (!body.role || !['MEMBER'].includes(body.role)) {
+      return NextResponse.json({ error: 'Valid role is required (MEMBER)' }, { status: 400 });
     }
 
     // Faire la requête au backend pour mettre à jour le rôle du membre
