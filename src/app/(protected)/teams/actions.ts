@@ -53,7 +53,7 @@ interface CreateTeamWithMembersData {
   description?: string;
   initialMembers?: Array<{
     email: string;
-    role: 'ADMIN' | 'MEMBER';
+    role: 'MEMBER';
   }>;
 }
 
@@ -109,7 +109,7 @@ export async function createTeamWithMembers(data: CreateTeamWithMembersData) {
 
 interface InviteMemberData {
   email: string;
-  role: 'ADMIN' | 'MEMBER';
+  role: 'MEMBER';
 }
 
 export async function inviteMember(teamId: string, data: InviteMemberData) {

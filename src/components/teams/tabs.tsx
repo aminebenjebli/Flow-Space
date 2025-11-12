@@ -31,7 +31,7 @@ export function Tabs({ team, projects, canManageTeam, userRole }: TabsProps) {
     teamMembersLength: team.members?.length,
     activeTab,
     showInviteButton: canManageTeam,
-    showSettingsTab: canManageTeam && (userRole === 'OWNER' || userRole === 'ADMIN')
+    showSettingsTab: canManageTeam && userRole === 'OWNER'
   });
 
   // Handle URL parameters
@@ -252,7 +252,7 @@ export function Tabs({ team, projects, canManageTeam, userRole }: TabsProps) {
                       </p>
                     )}
                     <div className="flex items-center justify-between text-sm text-muted-foreground pt-4 border-t border-border">
-                      <span>{project._count?.tasks || 0} tasks</span>
+                      <span>{project.taskCount ?? project._count?.tasks ?? 0} tasks</span>
                       <span>{new Date(project.createdAt).toLocaleDateString()}</span>
                     </div>
                   </div>
@@ -263,7 +263,7 @@ export function Tabs({ team, projects, canManageTeam, userRole }: TabsProps) {
         </div>
       )}
 
-      {activeTab === 'settings' && (canManageTeam && (userRole === 'OWNER' || userRole === 'ADMIN')) && (
+      {activeTab === 'settings' && (canManageTeam && userRole === 'OWNER') && (
         <div>
           <TeamSettings team={team} userRole={userRole} canManageTeam={canManageTeam} />
         </div>

@@ -14,7 +14,6 @@ export function InviteMemberForm({ teamId }: InviteMemberFormProps) {
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
-    role: "MEMBER" as "ADMIN" | "MEMBER",
   });
   const [inviteToken, setInviteToken] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -95,14 +94,14 @@ export function InviteMemberForm({ teamId }: InviteMemberFormProps) {
     try {
       const result = await inviteMember(teamId, {
         email: formData.email.trim(),
-        role: formData.role,
+        role: "MEMBER",
       });
 
       if (result?.error) {
         setError(result.error);
       } else {
         setSuccess("Invitation sent successfully!");
-        setFormData({ email: "", role: "MEMBER" });
+        setFormData({ email: "" });
         
         // Show token in dev mode
         if (result.token) {
@@ -129,59 +128,44 @@ export function InviteMemberForm({ teamId }: InviteMemberFormProps) {
       <EmailStatusBanner />
       
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Email Address *
-            </label>
-            <div className="relative">
-              <input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => handleEmailChange(e.target.value)}
-                placeholder="member@example.com"
-                disabled={isLoading || isCheckingEmail}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white ${
-                  emailStatus.type === 'success' ? 'border-green-500' :
-                  emailStatus.type === 'warning' ? 'border-yellow-500' :
-                  emailStatus.type === 'error' ? 'border-red-500' :
-                  'border-gray-300 dark:border-gray-600'
-                }`}
-                required
-              />
-              {isCheckingEmail && (
-                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                </div>
-              )}
-            </div>
-            {emailStatus.message && (
-              <p className={`text-sm mt-1 ${
-                emailStatus.type === 'success' ? 'text-green-600' :
-                emailStatus.type === 'warning' ? 'text-yellow-600' :
-                'text-red-600'
-              }`}>
-                {emailStatus.message}
-              </p>
+        <div>
+          <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Email Address *
+          </label>
+          <div className="relative">
+            <input
+              id="email"
+              type="email"
+              value={formData.email}
+              onChange={(e) => handleEmailChange(e.target.value)}
+              placeholder="member@example.com"
+              disabled={isLoading || isCheckingEmail}
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white ${
+                emailStatus.type === 'success' ? 'border-green-500' :
+                emailStatus.type === 'warning' ? 'border-yellow-500' :
+                emailStatus.type === 'error' ? 'border-red-500' :
+                'border-gray-300 dark:border-gray-600'
+              }`}
+              required
+            />
+            {isCheckingEmail && (
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+              </div>
             )}
           </div>
-
-          <div>
-            <label htmlFor="role" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Role
-            </label>
-            <select 
-              id="role"
-              value={formData.role} 
-              onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value as "ADMIN" | "MEMBER" }))}
-              disabled={isLoading}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-            >
-              <option value="MEMBER">Member</option>
-              <option value="ADMIN">Admin</option>
-            </select>
-          </div>
+          {emailStatus.message && (
+            <p className={`text-sm mt-1 ${
+              emailStatus.type === 'success' ? 'text-green-600' :
+              emailStatus.type === 'warning' ? 'text-yellow-600' :
+              'text-red-600'
+            }`}>
+              {emailStatus.message}
+            </p>
+          )}
+          <p className="text-xs text-muted-foreground mt-1">
+            New members will be invited with the Member role
+          </p>
         </div>
 
         <button 
@@ -211,23 +195,7 @@ export function InviteMemberForm({ teamId }: InviteMemberFormProps) {
         </div>
       )}
 
-      {inviteToken && (
-        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Development Mode</p>
-              <p className="text-xs text-blue-700 dark:text-blue-300">Invite token generated for testing</p>
-            </div>
-            <button
-              onClick={copyInviteLink}
-              className="inline-flex items-center px-3 py-1 text-sm bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-200 border border-blue-300 dark:border-blue-600 rounded hover:bg-blue-200 dark:hover:bg-blue-700 transition-colors"
-            >
-              <Copy className="h-4 w-4 mr-1" />
-              Copy Link
-            </button>
-          </div>
-        </div>
-      )}
+     
     </div>
   );
 }

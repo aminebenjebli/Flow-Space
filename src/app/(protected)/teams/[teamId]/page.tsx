@@ -24,7 +24,7 @@ async function getTeamDetails(teamId: string): Promise<Team | null> {
       headers: {
         'Authorization': `Bearer ${session.accessToken}`,
       },
-      cache: 'no-store',
+      next: { revalidate: 30 }, // Cache for 30 seconds
     });
 
     if (!response.ok) {
@@ -50,7 +50,7 @@ async function getTeamProjects(teamId: string): Promise<Project[]> {
       headers: {
         'Authorization': `Bearer ${session.accessToken}`,
       },
-      cache: 'no-store',
+      next: { revalidate: 30 }, // Cache for 30 seconds
     });
 
     if (!response.ok) {
@@ -135,7 +135,7 @@ export default async function TeamPage({ params }: TeamPageProps) {
     }
   }
   
-  const canManageTeam = userRole === 'OWNER' || userRole === 'ADMIN';
+  const canManageTeam = userRole === 'OWNER';
   
   console.log('DEBUG PAGE - Final role calculation:', {
     currentMember,

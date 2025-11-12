@@ -312,19 +312,12 @@ export function ProjectSettings({ project, userTeams, canAdmin, currentUserId }:
 
               <div>
                 <Label htmlFor="invite-role">Role</Label>
-                <Select 
-                  value={inviteData.role} 
-                  onValueChange={(value: 'ADMIN' | 'MEMBER') => setInviteData(prev => ({ ...prev, role: value }))}
-                  disabled={isInviting}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="MEMBER">Member</SelectItem>
-                    <SelectItem value="ADMIN">Admin</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="px-3 py-2 border border-border rounded-lg bg-muted/50 text-card-foreground">
+                  Member
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  New members will be invited with the Member role
+                </p>
               </div>
             </div>
 
