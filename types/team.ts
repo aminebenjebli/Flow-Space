@@ -11,7 +11,7 @@ export interface TeamMember {
   id: string;
   userId: string;
   teamId: string;
-  role: 'OWNER' | 'ADMIN' | 'MEMBER';
+  role: 'OWNER' | 'MEMBER';
   joinedAt: Date;
   // Support both nested user object and flat properties
   user?: User;
@@ -36,7 +36,7 @@ export interface Team {
 export interface TeamInvite {
   id: string;
   email: string;
-  role: 'ADMIN' | 'MEMBER';
+  role: 'MEMBER';
   token: string;
   expiresAt: Date;
   teamId: string;
@@ -76,5 +76,5 @@ export interface UpdateProjectSettingsData {
 
 export interface ProjectInviteData {
   email: string;
-  role?: 'ADMIN' | 'MEMBER';
+  role?: 'MEMBER';
 }

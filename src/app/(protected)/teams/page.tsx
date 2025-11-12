@@ -17,7 +17,7 @@ async function getMyTeams(): Promise<Team[]> {
       headers: {
         'Authorization': `Bearer ${session.accessToken}`,
       },
-      cache: 'no-store',
+      next: { revalidate: 30 }, // Cache for 30 seconds
     });
 
     if (!response.ok) {

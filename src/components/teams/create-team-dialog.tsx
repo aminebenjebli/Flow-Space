@@ -10,7 +10,7 @@ import { toast } from "react-hot-toast";
 
 interface TeamMember {
   email: string;
-  role: 'ADMIN' | 'MEMBER';
+  role: 'MEMBER';
 }
 
 export function CreateTeamDialog() {
@@ -175,19 +175,9 @@ export function CreateTeamDialog() {
                   />
                 </div>
                 
-                <Select 
-                  value={currentMember.role} 
-                  onValueChange={(value: 'ADMIN' | 'MEMBER') => setCurrentMember(prev => ({ ...prev, role: value }))}
-                  disabled={isLoading}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="MEMBER">Member</SelectItem>
-                    <SelectItem value="ADMIN">Admin</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center px-3 py-2 border border-border rounded-lg bg-muted text-muted-foreground">
+                  <span className="text-sm">Role: Member</span>
+                </div>
               </div>
               
               <Button
