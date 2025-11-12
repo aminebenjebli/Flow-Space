@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { FolderOpen, Users, Lock, Globe, Plus, Search } from 'lucide-react';
+import { FolderOpen, Users, Lock, Globe, Plus, Search, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import CreatePersonalProjectDialog from '@/components/projects/create-personal-project-dialog';
 import { useRouter } from 'next/navigation';
@@ -22,19 +22,35 @@ interface Project {
   };
 }
 
+interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
 interface ProjectsClientProps {
   initialMyProjects: Project[];
   initialPublicProjects: Project[];
+  initialPublicMeta?: PaginationMeta;
 }
 
 export default function ProjectsClient({ 
   initialMyProjects, 
-  initialPublicProjects 
+  initialPublicProjects,
+  initialPublicMeta
 }: ProjectsClientProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'my' | 'public'>('my');
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  
+  // Pagination state for public projects
+  const [publicProjects, setPublicProjects] = useState(initialPublicProjects);
+  const [publicMeta, setPublicMeta] = useState(initialPublicMeta);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // Memoize filtered projects for better performance
   const filteredMyProjects = useMemo(() => {
@@ -48,14 +64,14 @@ export default function ProjectsClient({
   }, [initialMyProjects, searchTerm]);
 
   const filteredPublicProjects = useMemo(() => {
-    if (!searchTerm) return initialPublicProjects;
+    if (!searchTerm) return publicProjects;
     const search = searchTerm.toLowerCase();
-    return initialPublicProjects.filter(project =>
+    return publicProjects.filter(project =>
       project.name.toLowerCase().includes(search) ||
       project.description?.toLowerCase().includes(search) ||
       project.team?.name.toLowerCase().includes(search)
     );
-  }, [initialPublicProjects, searchTerm]);
+  }, [publicProjects, searchTerm]);
 
   const handleProjectCreated = () => {
     // Refresh the page data
@@ -65,6 +81,26 @@ export default function ProjectsClient({
   const handleProjectHover = (projectId: string) => {
     // Prefetch the project page on hover for instant navigation
     router.prefetch(`/projects/${projectId}`);
+  };
+
+  const loadMorePublicProjects = async () => {
+    if (!publicMeta?.hasNextPage || isLoadingMore) return;
+    
+    setIsLoadingMore(true);
+    try {
+      const nextPage = publicMeta.page + 1;
+      const response = await fetch(`/api/projects/public?page=${nextPage}&limit=${publicMeta.limit}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        setPublicProjects(prev => [...prev, ...data.data]);
+        setPublicMeta(data.meta);
+      }
+    } catch (error) {
+      console.error('Failed to load more public projects:', error);
+    } finally {
+      setIsLoadingMore(false);
+    }
   };
 
   const renderProject = (project: Project) => (
@@ -174,7 +210,7 @@ export default function ProjectsClient({
                 }`}
               >
                 <Globe className="h-4 w-4" />
-                Public Projects ({filteredPublicProjects.length})
+                Public Projects ({publicMeta ? `${filteredPublicProjects.length} of ${publicMeta.total}` : filteredPublicProjects.length})
               </button>
             </nav>
           </div>
@@ -232,7 +268,31 @@ export default function ProjectsClient({
                   </div>
                 </div>
               ) : (
-                filteredPublicProjects.map(renderProject)
+                <>
+                  {filteredPublicProjects.map(renderProject)}
+                  
+                  {/* Load More Button */}
+                  {publicMeta && publicMeta.hasNextPage && !searchTerm && (
+                    <div className="col-span-full flex justify-center mt-4">
+                      <button
+                        onClick={loadMorePublicProjects}
+                        disabled={isLoadingMore}
+                        className="inline-flex items-center px-6 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md"
+                      >
+                        {isLoadingMore ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Loading...
+                          </>
+                        ) : (
+                          <>
+                            Load More ({publicMeta.total - filteredPublicProjects.length} remaining)
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}

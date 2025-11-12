@@ -21,6 +21,20 @@ interface Project {
   };
 }
 
+interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
+interface PaginatedResponse {
+  data: Project[];
+  meta: PaginationMeta;
+}
+
 // Fetch projects with parallel requests and caching
 async function getMyProjects(accessToken: string): Promise<Project[]> {
   try {
@@ -91,14 +105,14 @@ async function getMyProjects(accessToken: string): Promise<Project[]> {
   }
 }
 
-async function getPublicProjects(accessToken: string): Promise<Project[]> {
+async function getPublicProjects(accessToken: string): Promise<PaginatedResponse> {
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/projects/public`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/projects/public?page=1&limit=5`, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
-      next: { revalidate: 60 }, // Cache for 1 minute
+      next: { revalidate: 30 }, // Cache for 30 seconds
     });
 
     if (response.ok) {
@@ -107,7 +121,17 @@ async function getPublicProjects(accessToken: string): Promise<Project[]> {
   } catch (error) {
     console.error('Error fetching public projects:', error);
   }
-  return [];
+  return {
+    data: [],
+    meta: {
+      page: 1,
+      limit: 5,
+      total: 0,
+      totalPages: 0,
+      hasNextPage: false,
+      hasPreviousPage: false
+    }
+  };
 }
 
 export default async function ProjectsPage() {
@@ -118,7 +142,7 @@ export default async function ProjectsPage() {
   }
 
   // Fetch both in parallel
-  const [myProjects, publicProjects] = await Promise.all([
+  const [myProjects, publicResponse] = await Promise.all([
     getMyProjects(session.accessToken),
     getPublicProjects(session.accessToken)
   ]);
@@ -127,7 +151,8 @@ export default async function ProjectsPage() {
     <Suspense fallback={<ProjectsLoadingSkeleton />}>
       <ProjectsClient 
         initialMyProjects={myProjects} 
-        initialPublicProjects={publicProjects} 
+        initialPublicProjects={publicResponse.data}
+        initialPublicMeta={publicResponse.meta}
       />
     </Suspense>
   );
