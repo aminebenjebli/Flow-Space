@@ -195,23 +195,7 @@ export function InviteMemberForm({ teamId }: InviteMemberFormProps) {
         </div>
       )}
 
-      {inviteToken && (
-        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Development Mode</p>
-              <p className="text-xs text-blue-700 dark:text-blue-300">Invite token generated for testing</p>
-            </div>
-            <button
-              onClick={copyInviteLink}
-              className="inline-flex items-center px-3 py-1 text-sm bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-200 border border-blue-300 dark:border-blue-600 rounded hover:bg-blue-200 dark:hover:bg-blue-700 transition-colors"
-            >
-              <Copy className="h-4 w-4 mr-1" />
-              Copy Link
-            </button>
-          </div>
-        </div>
-      )}
+     
     </div>
   );
 }

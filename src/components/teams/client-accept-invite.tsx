@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { acceptInvite } from '@/app/(protected)/teams/actions';
 
@@ -13,13 +13,21 @@ export function ClientAcceptInvite({ token, urlError }: ClientAcceptInviteProps)
   const [status, setStatus] = useState<'loading' | 'error' | 'success'>('loading');
   const [error, setError] = useState('');
   const router = useRouter();
+  const hasAttempted = useRef(false); // Flag to prevent double execution
 
   useEffect(() => {
+    // Prevent double execution in React Strict Mode
+    if (hasAttempted.current) {
+      return;
+    }
+
     if (urlError) {
       setStatus('error');
       setError(decodeURIComponent(urlError));
       return;
     }
+
+    hasAttempted.current = true; // Mark as attempted
 
     async function handleAcceptInvite() {
       try {
@@ -53,7 +61,8 @@ export function ClientAcceptInvite({ token, urlError }: ClientAcceptInviteProps)
     }
 
     handleAcceptInvite();
-  }, [token, urlError, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, urlError]); // Removed 'router' from dependencies
 
   if (status === 'loading') {
     return (
@@ -123,6 +132,19 @@ export function ClientAcceptInvite({ token, urlError }: ClientAcceptInviteProps)
             {error}
           </p>
           
+          {/* Help for already accepted invitations */}
+          {(error.toLowerCase().includes('already been accepted') || error.toLowerCase().includes('already a member')) && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+              <h3 className="text-green-800 font-medium mb-2">✅ Already a Member</h3>
+              <p className="text-green-700 text-sm mb-3">
+                Good news! You have already accepted this invitation and are a member of this team.
+              </p>
+              <p className="text-green-600 text-xs mb-2">
+                No further action is needed. Click below to view your teams.
+              </p>
+            </div>
+          )}
+          
           {/* Additional help for expired invitations */}
           {error.toLowerCase().includes('expired') && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
@@ -136,11 +158,11 @@ export function ClientAcceptInvite({ token, urlError }: ClientAcceptInviteProps)
             </div>
           )}
           
-          {error.toLowerCase().includes('invalid') && (
+          {error.toLowerCase().includes('invalid') && !error.toLowerCase().includes('already') && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
               <h3 className="text-red-800 font-medium mb-2">🚫 Invalid Invitation</h3>
               <p className="text-red-700 text-sm mb-3">
-                This invitation link is not valid. It may have been used already or the link might be corrupted.
+                This invitation link is not valid. It may have been used by someone else or the link might be corrupted.
               </p>
               <p className="text-red-600 text-xs">
                 <strong>Token:</strong> {token.substring(0, 16)}...

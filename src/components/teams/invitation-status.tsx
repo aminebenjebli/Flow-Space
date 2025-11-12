@@ -30,10 +30,8 @@ export function InvitationStatus({ invitations, teamId }: InvitationStatusProps)
 
   const isPending = (invitation: any) => !invitation.acceptedAt && new Date(invitation.expiresAt) > new Date();
   const isExpired = (invitation: any) => !invitation.acceptedAt && new Date(invitation.expiresAt) <= new Date();
-  const isAccepted = (invitation: any) => !!invitation.acceptedAt;
 
   const pendingInvitations = invitations.filter(isPending);
-  const acceptedInvitations = invitations.filter(isAccepted);
   const expiredInvitations = invitations.filter(isExpired);
 
   if (invitations.length === 0) {
@@ -100,35 +98,6 @@ export function InvitationStatus({ invitations, teamId }: InvitationStatusProps)
                     <ExternalLink className="h-3 w-3" />
                     Open
                   </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Accepted Invitations */}
-      {acceptedInvitations.length > 0 && (
-        <div>
-          <h4 className="text-lg font-semibold text-card-foreground mb-3">
-            Accepted Invitations ({acceptedInvitations.length})
-          </h4>
-          <div className="space-y-2">
-            {acceptedInvitations.map((invitation, index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{invitation.email}</span>
-                    <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded">
-                      {invitation.role}
-                    </span>
-                    <span className="text-xs px-2 py-1 bg-green-200 text-green-800 rounded">
-                      ✓ Accepted
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Joined: {new Date(invitation.acceptedAt!).toLocaleDateString()}
-                  </p>
                 </div>
               </div>
             ))}
