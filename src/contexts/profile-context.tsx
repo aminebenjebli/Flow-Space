@@ -17,7 +17,7 @@ interface UserProfile {
   email: string;
   profilePicture?: string;
   bio?: string;
-}
+}  
 
 interface ProfileContextType {
   profile: UserProfile | null;

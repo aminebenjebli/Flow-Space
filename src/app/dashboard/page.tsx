@@ -1,5 +1,4 @@
 "use client";
-
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -33,14 +32,23 @@ import {
   Settings,
   Menu,
   X,
+  Trophy,
+  Users,
+  Calendar,
 } from "lucide-react";
+import { Challenge } from '@/lib/api/axios';
+
+// Import Gamification Components
+import LeaderboardPreview from "@/components/gamification/LeaderboardPreview";
+import PointsDisplay from "@/components/gamification/PointsDisplay";
+import AchievementsTab from "@/components/gamification/AchievementsTab";
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
   useEffect(() => {
-    if (status === "loading") return; // Still loading
+    if (status === "loading") return;
     if (!session) router.push("/login");
   }, [session, status, router]);
 
@@ -51,15 +59,156 @@ export default function DashboardPage() {
       </div>
     );
   }
-
   if (!session) {
     return null;
   }
-
   return (
     <TaskProvider>
       <DashboardContent session={session} />
     </TaskProvider>
+  );
+}
+
+function ChallengesBanner({ userId }: { userId: string }) {
+  const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [userTeams, setUserTeams] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+
+        // Fetch user's teams
+        const teamsResponse = await api.get('/teams/mine');
+        setUserTeams(teamsResponse.data || []);
+
+        // Fetch challenges for the user
+        const challengesResponse = await api.gamification.getChallenges(userId);
+        setChallenges(challengesResponse || []);
+      } catch (err) {
+        console.error("Error fetching challenges:", err);
+        setError("Failed to load challenges");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [userId]);
+
+  const handleJoinChallenge = async (challengeId: string) => {
+    try {
+      const response = await api.gamification.joinChallenge(userId, challengeId);
+      toast.success(response.message);
+      // Refresh challenges
+      const updatedChallenges = await api.gamification.getChallenges(userId);
+      setChallenges(updatedChallenges || []);
+    } catch (err) {
+      console.error("Error joining challenge:", err);
+      toast.error("Failed to join challenge");
+    }
+  };
+
+  const isUserOwnerOfChallenge = (challenge: Challenge) => {
+    const team = userTeams.find(t => t.id === challenge.teamId);
+    return team?.members?.some((member: any) => member.userId === userId && member.role === 'OWNER');
+  };
+
+  if (loading) {
+    return (
+      <div className="flow-card p-6">
+        <h3 className="text-lg font-semibold text-foreground mb-4">Active Challenges</h3>
+        <div className="flex items-center justify-center h-32">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flow-card p-6">
+        <h3 className="text-lg font-semibold text-foreground mb-4">Active Challenges</h3>
+        <p className="text-red-500">{error}</p>
+      </div>
+    );
+  }
+
+  if (challenges.length === 0) {
+    return (
+      <div className="flow-card p-6">
+        <h3 className="text-lg font-semibold text-foreground mb-4">Active Challenges</h3>
+        <div className="text-center py-8 text-muted-foreground">
+          <Trophy className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          <p className="text-sm">No active challenges</p>
+          <p className="text-xs mt-1">Check back later for new challenges!</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flow-card p-6">
+      <h3 className="text-lg font-semibold text-foreground mb-4">Active Challenges</h3>
+      <div className="space-y-4">
+        {challenges.map((challenge) => {
+          const isOwner = isUserOwnerOfChallenge(challenge);
+          const daysRemaining = Math.ceil(
+            (new Date(challenge.endDate).getTime() - new Date().getTime()) /
+            (1000 * 60 * 60 * 24)
+          );
+
+          return (
+            <div key={challenge.id} className="p-4 border border-border rounded-lg bg-muted/30">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h4 className="font-medium text-card-foreground">{challenge.name}</h4>
+                  <p className="text-sm text-muted-foreground mt-1">{challenge.description}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 bg-secondary px-2 py-1 rounded-md text-xs">
+                    <Trophy className="h-3 w-3" />
+                    <span>{challenge.pointsRewarded} pts</span>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-2 flex items-center justify-between text-sm text-muted-foreground">
+                <div className="flex items-center gap-1">
+                  <Calendar className="h-3.5 w-3.5" />
+                  <span>
+                    {new Date(challenge.startDate).toLocaleDateString()} to {new Date(challenge.endDate).toLocaleDateString()}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span>{daysRemaining} {daysRemaining === 1 ? 'day' : 'days'} left</span>
+                </div>
+              </div>
+              {!isOwner && !challenge.userJoined && (
+                <Button
+                  size="sm"
+                  className="mt-3 w-full bg-primary hover:bg-primary/90"
+                  onClick={() => handleJoinChallenge(challenge.id)}
+                >
+                  Join Challenge
+                </Button>
+              )}
+              {challenge.userJoined && (
+                <div className="mt-3 text-center text-sm text-green-600 bg-green-50 dark:bg-green-900/20 p-2 rounded-lg">
+                  Joined ✓
+                </div>
+              )}
+              {isOwner && (
+                <div className="mt-3 text-center text-sm text-blue-600 bg-blue-50 dark:bg-blue-900/20 p-2 rounded-lg">
+                  You created this challenge
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -81,24 +230,17 @@ function DashboardContent({ session }: { readonly session: any }) {
   const handleLogout = async () => {
     try {
       setIsLoggingOut(true);
-
-      // Call backend logout API to blacklist the refresh token
       if (session?.refreshToken) {
         await api.auth.logout(session.refreshToken);
       }
-
-      // Clear local session using NextAuth
       await signOut({
         callbackUrl: "/login",
         redirect: true,
       });
-
       toast.success("Logged out successfully");
     } catch (error) {
       console.error("Logout error:", error);
       toast.error("Error during logout, but session will be cleared");
-
-      // Even if backend logout fails, clear the local session
       await signOut({
         callbackUrl: "/login",
         redirect: true,
@@ -108,7 +250,6 @@ function DashboardContent({ session }: { readonly session: any }) {
     }
   };
 
-  // Get recent tasks (last 5)
   const recentTasks = tasks.slice(0, 5);
 
   const statsData = [
@@ -159,7 +300,6 @@ function DashboardContent({ session }: { readonly session: any }) {
                 <span className="text-white font-bold text-lg">F</span>
               </div>
               <h1 className="text-2xl font-bold text-foreground">FlowSpace</h1>
-
               {/* Enhanced Navigation */}
               <nav className="hidden md:flex items-center space-x-1 ml-8">
                 <button
@@ -188,7 +328,6 @@ function DashboardContent({ session }: { readonly session: any }) {
                 </button>
               </nav>
             </div>
-
             <div className="flex items-center space-x-4">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -317,7 +456,6 @@ function DashboardContent({ session }: { readonly session: any }) {
           </div>
         )}
       </header>
-
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8">
         {/* Welcome Section */}
@@ -329,7 +467,17 @@ function DashboardContent({ session }: { readonly session: any }) {
             Here's what's happening with your projects today.
           </p>
         </div>
-
+        {/* Gamification Section */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {/* Points Display */}
+          <PointsDisplay userId={session.user.id} />
+          {/* Leaderboard Preview */}
+          <LeaderboardPreview />
+          {/* Achievements Tab */}
+          <AchievementsTab userId={session.user.id} />
+          {/* Challenges Banner */}
+          <ChallengesBanner userId={session.user.id} />
+        </div>
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {statsData.map((stat) => {
@@ -359,7 +507,6 @@ function DashboardContent({ session }: { readonly session: any }) {
             );
           })}
         </div>
-
         {/* Quick Actions */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Recent Tasks */}
@@ -386,18 +533,15 @@ function DashboardContent({ session }: { readonly session: any }) {
                     if (status === "TODO") return "bg-gray-400";
                     return "bg-red-500";
                   };
-
                   const getStatusText = (status: string) => {
                     if (status === "DONE") return "Completed";
                     if (status === "IN_PROGRESS") return "In Progress";
                     if (status === "TODO") return "To Do";
                     return "Cancelled";
                   };
-
                   const getPriorityText = (priority: string) => {
                     return priority.charAt(0) + priority.slice(1).toLowerCase();
                   };
-
                   return (
                     <button
                       key={task.id}
@@ -440,60 +584,26 @@ function DashboardContent({ session }: { readonly session: any }) {
               )}
             </div>
           </div>
-
           {/* Team Activity */}
           <div className="flow-card p-6">
             <h3 className="text-lg font-semibold text-foreground mb-6">
               Team Activity
             </h3>
             <div className="space-y-4">
-              {[
-                {
-                  id: 1,
-                  user: "Sarah Chen",
-                  action: "completed",
-                  task: "User authentication flow",
-                  time: "2 hours ago",
-                },
-                {
-                  id: 2,
-                  user: "Mike Johnson",
-                  action: "created",
-                  task: "Database optimization task",
-                  time: "4 hours ago",
-                },
-                {
-                  id: 3,
-                  user: "Anna Davis",
-                  action: "commented on",
-                  task: "API documentation",
-                  time: "6 hours ago",
-                },
-                {
-                  id: 4,
-                  user: "Tom Wilson",
-                  action: "assigned",
-                  task: "Mobile app testing",
-                  time: "1 day ago",
-                },
-              ].map((activity) => (
-                <div key={activity.id} className="flex items-start space-x-3">
+              {[...Array(4)].map((activity, index) => (
+                <div
+                  key={index}
+                  className="flex items-start space-x-3"
+                >
                   <div className="w-8 h-8 flow-gradient-secondary rounded-full flex items-center justify-center">
-                    <span className="text-white text-xs font-medium">
-                      {activity.user
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")}
-                    </span>
+                    <span className="text-white text-xs font-medium">S</span>
                   </div>
                   <div className="flex-1">
                     <p className="text-sm text-foreground">
-                      <span className="font-medium">{activity.user}</span>{" "}
-                      {activity.action}{" "}
-                      <span className="font-medium">{activity.task}</span>
+                      <span className="font-medium">User</span> completed task
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {activity.time}
+                      2 hours ago
                     </p>
                   </div>
                 </div>
@@ -501,7 +611,6 @@ function DashboardContent({ session }: { readonly session: any }) {
             </div>
           </div>
         </div>
-
         {/* Coming Soon Section */}
         <div className="mt-8 flow-gradient-primary rounded-xl p-8 text-center text-white">
           <h3 className="text-2xl font-bold mb-4">
