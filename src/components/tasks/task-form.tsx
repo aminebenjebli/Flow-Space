@@ -220,6 +220,12 @@ export function TaskForm({ task, onSuccess, onCancel }: TaskFormProps) {
     }
   };
 
+  // Format text for display in prompt: single-line, collapse spaces
+  const formatForDisplay = (s: string) => {
+    if (!s) return '';
+    return s.replace(/\r\n|\n+/g, ' ').replace(/ {2,}/g, ' ').trim();
+  };
+
   const statusOptions = [
     { value: TaskStatus.TODO, label: "To Do" },
     { value: TaskStatus.IN_PROGRESS, label: "In Progress" },
@@ -257,9 +263,10 @@ export function TaskForm({ task, onSuccess, onCancel }: TaskFormProps) {
               autoInsert="replace"
               onTranscription={(text: string, opts?: { replace?: boolean }) => {
                 // WhisperTester will call this when autoInsert is enabled; ensure we set the prompt accordingly
-                if (opts?.replace) setPrompt(text);
+                const formatted = formatForDisplay(text);
+                if (opts?.replace) setPrompt(formatted);
                 else
-                  setPrompt((p) => (p && p.length > 0 ? `${p} ${text}` : text));
+                  setPrompt((p) => (p && p.length > 0 ? `${p} ${formatted}` : formatted));
               }}
             />
           </div>
