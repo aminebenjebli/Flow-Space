@@ -139,7 +139,8 @@ export function TaskForm({ task, onSuccess, onCancel }: TaskFormProps) {
     setIsParsing(true);
     try {
       // Use project api wrapper so auth and baseURL are handled
-      const res = await api.post("/tasks/parse", { input: prompt });
+      // Increase timeout for this endpoint as parsing (LLM) can be slow
+      const res = await api.post("/tasks/parse", { input: prompt }, { timeout: 30000 });
 
       // api.post may return wrapped { data, message, ... } or the raw payload depending on backend
       // Normalize to payload
@@ -203,6 +204,13 @@ export function TaskForm({ task, onSuccess, onCancel }: TaskFormProps) {
       // Extract better details from axios error
       const err = error as any;
       console.error("Parsing error:", err);
+      
+      // Check if it's a timeout
+      if (err?.code === 'ECONNABORTED' || err?.message?.includes('timeout')) {
+        toast.error("Le parsing a pris trop de temps (timeout). Essaie avec un texte plus court ou réessaye.");
+        return;
+      }
+      
       if (err?.response) {
         console.error(
           "Parser response status:",
@@ -218,6 +226,12 @@ export function TaskForm({ task, onSuccess, onCancel }: TaskFormProps) {
     } finally {
       setIsParsing(false);
     }
+  };
+
+  // Format text for display in prompt: single-line, collapse spaces
+  const formatForDisplay = (s: string) => {
+    if (!s) return '';
+    return s.replace(/\r\n|\n+/g, ' ').replace(/ {2,}/g, ' ').trim();
   };
 
   const statusOptions = [
@@ -257,9 +271,10 @@ export function TaskForm({ task, onSuccess, onCancel }: TaskFormProps) {
               autoInsert="replace"
               onTranscription={(text: string, opts?: { replace?: boolean }) => {
                 // WhisperTester will call this when autoInsert is enabled; ensure we set the prompt accordingly
-                if (opts?.replace) setPrompt(text);
+                const formatted = formatForDisplay(text);
+                if (opts?.replace) setPrompt(formatted);
                 else
-                  setPrompt((p) => (p && p.length > 0 ? `${p} ${text}` : text));
+                  setPrompt((p) => (p && p.length > 0 ? `${p} ${formatted}` : formatted));
               }}
             />
           </div>
