@@ -1,9 +1,15 @@
+"use client";
+
 import { io, Socket } from "socket.io-client";
 import {
   useAuthStore,
   useTasksStore,
   useNotificationsStore,
 } from "@/store/index";
+import { useEffect, useRef } from "react";
+import { BulkUpdateStatusDto, Task, TaskStatus } from "@/types/index";
+import { count } from "console";
+import { set } from "zod";
 
 class SocketService {
   private socket: Socket | null = null;
@@ -21,12 +27,11 @@ class SocketService {
       return null;
     }
 
-    const socketUrl = process.env.NEXT_PUBLIC_WS_URL || "http://127.0.0.1:8050";
-
+    const base = process.env.NEXT_PUBLIC_WS_URL!;
+    const socketUrl = `${base}/tasks`; // URL du serveur WebSocket
     this.socket = io(socketUrl, {
-      auth: {
-        token: user.id, // You might want to use a proper JWT token here
-      },
+      transports: ["websocket"], // Assurer que le transport est WebSocket
+      query: { userId: user.id }, // Le backend attend l'ID de l'utilisateur
       autoConnect: true,
       reconnection: true,
       reconnectionDelay: 1000,
@@ -48,7 +53,7 @@ class SocketService {
     if (!this.socket) return;
 
     this.socket.on("connect", () => {
-      console.log("Connected to server");
+      console.log("Connected to server", this.socket?.id);
       this.reconnectAttempts = 0;
     });
 
@@ -102,15 +107,6 @@ class SocketService {
     this.emit("leave-task-room", { taskId });
   }
 
-  // Project-specific methods
-  joinProjectRoom(projectId: string) {
-    this.emit("join-project-room", { projectId });
-  }
-
-  leaveProjectRoom(projectId: string) {
-    this.emit("leave-project-room", { projectId });
-  }
-
   // Utility methods
   isConnected(): boolean {
     return this.socket?.connected || false;
@@ -121,52 +117,63 @@ class SocketService {
   }
 }
 
-// Create singleton instance
+// Crée une instance singleton du service Socket
 const socketService = new SocketService();
 
 export default socketService;
 
-// React hook for socket management
-import { useEffect, useRef } from "react";
-
+// React hook pour gérer la connexion et l'écoute des événements WebSocket
 export function useSocket() {
   const socketRef = useRef<Socket | null>(null);
-  const { addTask, updateTask, deleteTask } = useTasksStore();
+  const { addTask, updateTaskInStore, deleteTask, setTasks } = useTasksStore();
   const { addNotification } = useNotificationsStore();
 
   useEffect(() => {
-    // Connect to socket
+    // Connecte-toi au WebSocket
     socketRef.current = socketService.connect();
 
     if (socketRef.current) {
-      // Set up task event listeners
-      socketService.on("task:created", (task) => {
-        addTask(task);
+      // Configure les écouteurs d'événements
+      socketService.on("taskAdded", (task) => {
+        addTask(task); // Ajouter une tâche au store quand elle est créée
       });
 
-      socketService.on("task:updated", (task) => {
-        updateTask(task.id, task);
+      socketService.on("taskUpdated", (updatedTask) => {
+        console.log("Received task update:", updatedTask);
+        updateTaskInStore(updatedTask.id, updatedTask); // Mettre à jour la tâche dans le store
       });
 
-      socketService.on("task:deleted", ({ id }) => {
-        deleteTask(id);
+      socketService.on("taskDeleted", (deletedTask: Task) => {
+        //console.log("Received task deletion:", deletedTask);
+        // Ensure the deleted task has a valid id
+        if (deletedTask?.id) {
+          deleteTask(deletedTask.id); // Remove the task from the store
+        }
       });
 
       socketService.on("notification:new", (notification) => {
-        addNotification(notification);
+        addNotification(notification); // Ajouter une notification au store
       });
+      // socket.ts (Frontend)
+      socketService.on(
+        "bulkUpdateStatus",
+        (payload: { count: number; taskIds: string[]; status: TaskStatus }) => {
+          console.log("Received bulk update status:", payload);
+        }
+      );
     }
 
-    // Cleanup on unmount
+    // Cleanup à la déconnexion
     return () => {
       if (socketRef.current) {
-        socketService.off("task:created");
-        socketService.off("task:updated");
-        socketService.off("task:deleted");
+        socketService.off("taskAdded");
+        socketService.off("taskUpdated");
+        socketService.off("taskDeleted");
         socketService.off("notification:new");
+        socketService.off("bulkUpdateStatus");
       }
     };
-  }, [addTask, updateTask, deleteTask, addNotification]);
+  }, [addTask, updateTaskInStore, deleteTask, addNotification, setTasks]);
 
   return {
     socket: socketRef.current,
@@ -174,7 +181,5 @@ export function useSocket() {
     emit: socketService.emit.bind(socketService),
     joinTaskRoom: socketService.joinTaskRoom.bind(socketService),
     leaveTaskRoom: socketService.leaveTaskRoom.bind(socketService),
-    joinProjectRoom: socketService.joinProjectRoom.bind(socketService),
-    leaveProjectRoom: socketService.leaveProjectRoom.bind(socketService),
   };
 }

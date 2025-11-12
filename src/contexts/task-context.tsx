@@ -6,6 +6,7 @@ import React, {
   useState,
   useCallback,
   useMemo,
+  useEffect,
 } from "react";
 import { api } from "@/lib/api/axios";
 import {
@@ -16,8 +17,10 @@ import {
   TaskListResponse,
   TaskStatsResponse,
   BulkUpdateStatusDto,
+  TaskStatus,
 } from "@/types/index";
 import { toast } from "react-hot-toast";
+import socketService from "@/lib/socket/socket";
 
 interface TaskContextType {
   // State
@@ -191,6 +194,41 @@ export function TaskProvider({
     },
     []
   );
+useEffect(() => {
+  // Listen for task updates
+  socketService.on("taskUpdated", (updatedTask: Task) => {
+    console.log("Received task update in TaskProvider:", updatedTask);
+    setTasks((prevTasks) =>
+      prevTasks.map((task) =>
+        task.id === updatedTask.id ? updatedTask : task
+      )
+    );
+  });
+  
+  
+  // Listen for task creation
+  socketService.on("taskAdded", (newTask: Task) => {
+    console.log("Received new task in TaskProvider:", newTask);
+    setTasks((prevTasks) => [newTask, ...prevTasks]);
+  });
+
+
+  // Listen for task deletion
+  socketService.on("taskDeleted", (deletedTaskId: string) => {
+    console.log("Received task deletion:", deletedTaskId);
+   
+    // Update the state to reflect the deleted task
+    setTasks((prevTasks) =>
+      prevTasks.filter((task) => task.id !== deletedTaskId)
+    );
+  });
+   
+  return () => {
+    socketService.off("taskUpdated");
+    socketService.off("taskAdded");
+    socketService.off("taskDeleted");
+  };
+}, []);
 
   const updateTask = useCallback(
     async (id: string, data: UpdateTaskDto): Promise<Task | null> => {
@@ -293,6 +331,11 @@ export function TaskProvider({
               : task
           )
         );
+          socketService.emit("bulkUpdateStatus", {
+        count,
+        taskIds: data.taskIds,  // Send task IDs and the status
+        status: data.status,    // Send the status applied to those tasks
+      });
 
         toast.success(
           `${count} task${count === 1 ? "" : "s"} updated successfully!`
@@ -314,6 +357,32 @@ export function TaskProvider({
     },
     []
   );
+     // dans TaskProvider (le même useEffect où tu écoutes déjà d'autres events)
+
+  const onBulk = (payload: { count: number; taskIds: string[]; status: TaskStatus }) => {
+    console.log("Received bulk update status:", payload);
+    const { taskIds, status } = payload;
+
+    setTasks(prev =>
+      prev.map(t =>
+        taskIds.includes(t.id)
+          ? { ...t, status, updatedAt: new Date().toISOString() }
+          : t
+      )
+    );
+
+    // optionnel: si la task ouverte est affectée
+    setCurrentTask(prev =>
+      prev && taskIds.includes(prev.id)
+        ? { ...prev, status, updatedAt: new Date().toISOString() }
+        : prev
+    );
+
+    // optionnel: rafraîchir les stats
+    fetchStats?.();
+     socketService.on("bulkUpdateStatus", onBulk);
+  return () => socketService.off("bulkUpdateStatus", onBulk);
+  };
 
   const fetchStats = useCallback(async () => {
     try {
