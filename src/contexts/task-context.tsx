@@ -152,13 +152,20 @@ export function TaskProvider({
     async (data: CreateTaskDto): Promise<Task | null> => {
       setIsLoading(true);
       try {
-        const taskData = { 
-          ...data, 
-          ...(projectId && { projectId }) 
+        const taskData = {
+          ...data,
+          ...(projectId && { projectId }),
         };
         console.log("Creating task with data:", taskData);
         const response = await api.tasks.create(taskData);
         console.log("Create response:", response);
+
+        // Check if this is a queued response from service worker (offline mode)
+        if ((response as any).queued || (response as any).success === false) {
+          console.log("Task queued for sync (offline mode):", response);
+          toast.success("Task created offline. Will sync when online.");
+          return null; // Don't add invalid data to state
+        }
 
         let newTask: Task;
         if (response.data) {
@@ -199,6 +206,26 @@ export function TaskProvider({
         console.log("Updating task:", id, "with data:", data);
         const response = await api.tasks.update(id, data);
         console.log("Update response:", response);
+
+        // Check if this is a queued response from service worker (offline mode)
+        if ((response as any).queued || (response as any).success === false) {
+          console.log("Update queued for sync (offline mode):", response);
+
+          // Optimistically update in UI
+          setTasks((prev) =>
+            prev.map((task) => {
+              if (!task?.id) return task;
+              return task.id === id ? { ...task, ...data } : task;
+            })
+          );
+
+          if (currentTask?.id === id) {
+            setCurrentTask({ ...currentTask, ...data });
+          }
+
+          toast.success("Task updated offline. Will sync when online.");
+          return currentTask;
+        }
 
         let updatedTask: Task;
         if (response.data) {
@@ -248,14 +275,24 @@ export function TaskProvider({
   const deleteTask = useCallback(
     async (id: string): Promise<boolean> => {
       try {
-        await api.tasks.delete(id);
+        const response = await api.tasks.delete(id);
+
+        // Check if this is a queued response from service worker (offline mode)
+        if ((response as any)?.queued || (response as any)?.success === false) {
+          console.log("Delete queued for sync (offline mode):", response);
+        }
+
+        // Optimistically remove from UI
         setTasks((prev) => prev.filter((task) => task.id !== id));
 
         if (currentTask?.id === id) {
           setCurrentTask(null);
         }
 
-        toast.success("Task deleted successfully!");
+        const message = (response as any)?.queued
+          ? "Task deleted offline. Will sync when online."
+          : "Task deleted successfully!";
+        toast.success(message);
         return true;
       } catch (error: any) {
         console.error("Error deleting task:", error);

@@ -7,6 +7,7 @@ import { ThemeProvider } from "next-themes";
 import { useState } from "react";
 import { ProfileProvider } from "@/contexts/profile-context";
 import { TaskProvider } from "@/contexts/task-context";
+import { OfflineProjectProvider } from "@/contexts/offline-project-context";
 
 interface ProvidersProps {
   readonly children: React.ReactNode;
@@ -36,8 +37,10 @@ export function Providers({ children }: ProvidersProps) {
         >
           <ProfileProvider>
             <TaskProvider>
-              {children}
-              <ReactQueryDevtools initialIsOpen={false} />
+              <OfflineProjectProvider>
+                {children}
+                <ReactQueryDevtools initialIsOpen={false} />
+              </OfflineProjectProvider>
             </TaskProvider>
           </ProfileProvider>
         </ThemeProvider>
