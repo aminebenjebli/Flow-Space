@@ -7,6 +7,8 @@ import SessionWarning from "@/components/auth/session-warning";
 import RegisterServiceWorker from "@/components/pwa/register-sw";
 import PWAInstallPrompt from "@/components/pwa/install-prompt";
 import PWADebugPanel from "@/components/pwa/debug-panel";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth/auth";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -36,6 +38,8 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+   const session = await getServerSession(authOptions);
+  const userId = session?.user?.id ?? "";
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -48,7 +52,7 @@ export default async function RootLayout({
         <meta name="apple-mobile-web-app-title" content="FlowSpace" />
       </head>
       <body className={`${inter.variable} font-sans antialiased`}>
-        <Providers>
+        <Providers session={session} userId={userId}>
           {children}
           <SessionWarning warningTimeMinutes={5} />
           <Toaster

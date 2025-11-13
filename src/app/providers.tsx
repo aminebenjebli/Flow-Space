@@ -8,12 +8,19 @@ import { useState } from "react";
 import { ProfileProvider } from "@/contexts/profile-context";
 import { TaskProvider } from "@/contexts/task-context";
 import SocketBridge from "@/components/realtime/SocketBridge";
+import { authOptions } from "@/lib/auth/auth";
+import { getServerSession } from "next-auth";
 
 interface ProvidersProps {
   readonly children: React.ReactNode;
+ 
+ 
+  readonly session: any;
+  readonly userId: string;
 }
 
-export function Providers({ children }: ProvidersProps) {
+
+export  function Providers({ children, userId  }: ProvidersProps) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -25,6 +32,8 @@ export function Providers({ children }: ProvidersProps) {
         },
       })
   );
+  //  const session = await getServerSession(authOptions);
+  // const userId = session?.user?.id ?? ""; // assure-toi que l'ID utilisateur est bien récupéré
 
   return (
     <SessionProvider>
@@ -36,8 +45,7 @@ export function Providers({ children }: ProvidersProps) {
           storageKey="flowspace-theme"
         >
           <ProfileProvider>
-            {/* ✅ SocketBridge MUST mount BEFORE TaskProvider */}
-            <SocketBridge />
+            {userId && <SocketBridge/>} {/* Connecte-toi au WebSocket seulement si l'utilisateur est connecté */}
             <TaskProvider>
               {children}
               <ReactQueryDevtools initialIsOpen={false} />

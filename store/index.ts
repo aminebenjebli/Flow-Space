@@ -1,13 +1,6 @@
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
-import {
-  User,
-  Task,
-  Project,
-  Notification,
-  TaskStatus,
-  BulkUpdateStatusDto,
-} from "@/types/index";
+import { User, Task, Project, Notification } from "@/types/index";
 
 // Auth Store
 interface AuthState {
@@ -63,13 +56,12 @@ interface TasksState {
   };
   setTasks: (tasks: Task[]) => void;
   addTask: (task: Task) => void;
-  updateTaskInStore: (id: string, updates: Partial<Task>) => void;
+  updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
   setSelectedTask: (task: Task | null) => void;
   setLoading: (loading: boolean) => void;
   setFilters: (filters: Partial<TasksState["filters"]>) => void;
   clearFilters: () => void;
-  // updateBulkStatusInStore: (updatedTasks: BulkUpdateStatus[]) => void;
 }
 
 export const useTasksStore = create<TasksState>()(
@@ -89,33 +81,22 @@ export const useTasksStore = create<TasksState>()(
         set((state) => ({
           tasks: [...state.tasks, task],
         })),
-      updateTaskInStore: (id: string, updates: Partial<Task>) =>
-        set((state) => {
-          console.log("Updating task in store:", id, updates); // Ajoutez ce log pour voir les changements
-          return {
-            tasks: state.tasks.map((task) =>
-              task.id === id ? { ...task, ...updates } : task
-            ),
-          };
-        }),
+      updateTask: (id, updates) =>
+        set((state) => ({
+          tasks: state.tasks.map((task) =>
+            task.id === id ? { ...task, ...updates } : task
+          ),
+          selectedTask:
+            state.selectedTask?.id === id
+              ? { ...state.selectedTask, ...updates }
+              : state.selectedTask,
+        })),
       deleteTask: (id) =>
-        set((state) => {
-          // Log before task deletion
-          console.log("Deleting task with ID:", id);
-          console.log("Current tasks before deletion:", state.tasks);
-
-          // Perform the deletion
-          const updatedTasks = state.tasks.filter((task) => task.id !== id);
-
-          // Log after task deletion
-          console.log("Tasks after deletion:", updatedTasks);
-
-          return {
-            tasks: updatedTasks,
-            selectedTask:
-              state.selectedTask?.id === id ? null : state.selectedTask,
-          };
-        }),
+        set((state) => ({
+          tasks: state.tasks.filter((task) => task.id !== id),
+          selectedTask:
+            state.selectedTask?.id === id ? null : state.selectedTask,
+        })),
       setSelectedTask: (task) => set({ selectedTask: task }),
       setLoading: (loading) => set({ isLoading: loading }),
       setFilters: (filters) =>
@@ -131,8 +112,6 @@ export const useTasksStore = create<TasksState>()(
             search: "",
           },
         }),
-
-      // index.ts (Store)
     }),
     { name: "tasks-store" }
   )
