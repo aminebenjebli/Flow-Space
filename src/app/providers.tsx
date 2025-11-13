@@ -7,6 +7,7 @@ import { ThemeProvider } from "next-themes";
 import { useState } from "react";
 import { ProfileProvider } from "@/contexts/profile-context";
 import { TaskProvider } from "@/contexts/task-context";
+import SocketBridge from "@/components/realtime/SocketBridge";
 
 interface ProvidersProps {
   readonly children: React.ReactNode;
@@ -35,6 +36,8 @@ export function Providers({ children }: ProvidersProps) {
           storageKey="flowspace-theme"
         >
           <ProfileProvider>
+            {/* ✅ SocketBridge MUST mount BEFORE TaskProvider */}
+            <SocketBridge />
             <TaskProvider>
               {children}
               <ReactQueryDevtools initialIsOpen={false} />

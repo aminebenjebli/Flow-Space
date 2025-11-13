@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useProfile } from "@/contexts/profile-context";
-import { useTask, TaskProvider } from "@/contexts/task-context";
+import { useTask } from "@/contexts/task-context";
 import { api } from "@/lib/api/axios";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "react-hot-toast";
@@ -56,11 +56,7 @@ export default function DashboardPage() {
     return null;
   }
 
-  return (
-    <TaskProvider>
-      <DashboardContent session={session} />
-    </TaskProvider>
-  );
+  return <DashboardContent session={session} />;
 }
 
 function DashboardContent({ session }: { readonly session: any }) {

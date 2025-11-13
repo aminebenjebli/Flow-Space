@@ -1,29 +1,22 @@
 "use client";
 
 import { io, Socket } from "socket.io-client";
-import {
-  useAuthStore,
-  useTasksStore,
-  useNotificationsStore,
-} from "@/store/index";
-import { useEffect, useRef } from "react";
-import { BulkUpdateStatusDto, Task, TaskStatus } from "@/types/index";
-import { count } from "console";
-import { set } from "zod";
+import { useNotificationsStore } from "@/store/index";
+import { useEffect, useRef, useState } from "react";
+import { useSession } from "next-auth/react";
 
 class SocketService {
   private socket: Socket | null = null;
   private reconnectAttempts = 0;
   private readonly maxReconnectAttempts = 5;
 
-  connect() {
+  connect(userId?: string) {
     if (this.socket?.connected) {
       return this.socket;
     }
 
-    const { user } = useAuthStore.getState();
-    if (!user) {
-      console.log("No user found, skipping socket connection");
+    if (!userId) {
+      console.log("No user ID provided, skipping socket connection");
       return null;
     }
 
@@ -31,7 +24,7 @@ class SocketService {
     const socketUrl = `${base}/tasks`; // URL du serveur WebSocket
     this.socket = io(socketUrl, {
       transports: ["websocket"], // Assurer que le transport est WebSocket
-      query: { userId: user.id }, // Le backend attend l'ID de l'utilisateur
+      query: { userId }, // Le backend attend l'ID de l'utilisateur
       autoConnect: true,
       reconnection: true,
       reconnectionDelay: 1000,
@@ -88,12 +81,18 @@ class SocketService {
   // Event subscription methods
   on(event: string, callback: (...args: any[]) => void) {
     if (this.socket) {
+      console.log(`[SocketService] Registering listener for event: ${event}`);
       this.socket.on(event, callback);
+    } else {
+      console.warn(
+        `[SocketService] Cannot register listener for ${event} - socket not initialized`
+      );
     }
   }
 
   off(event: string, callback?: (...args: any[]) => void) {
     if (this.socket) {
+      console.log(`[SocketService] Removing listener for event: ${event}`);
       this.socket.off(event, callback);
     }
   }
@@ -125,59 +124,72 @@ export default socketService;
 // React hook pour gérer la connexion et l'écoute des événements WebSocket
 export function useSocket() {
   const socketRef = useRef<Socket | null>(null);
-  const { addTask, updateTaskInStore, deleteTask, setTasks } = useTasksStore();
-  const { addNotification } = useNotificationsStore();
+  const [isConnected, setIsConnected] = useState(false);
+  const { data: session } = useSession();
+
+  // ⚠️ Get store functions but DON'T use them as dependencies
+  const addNotification = useNotificationsStore(
+    (state) => state.addNotification
+  );
 
   useEffect(() => {
-    // Connecte-toi au WebSocket
-    socketRef.current = socketService.connect();
+    console.log("[useSocket] Initializing WebSocket connection");
 
-    if (socketRef.current) {
-      // Configure les écouteurs d'événements
-      socketService.on("taskAdded", (task) => {
-        addTask(task); // Ajouter une tâche au store quand elle est créée
-      });
-
-      socketService.on("taskUpdated", (updatedTask) => {
-        console.log("Received task update:", updatedTask);
-        updateTaskInStore(updatedTask.id, updatedTask); // Mettre à jour la tâche dans le store
-      });
-
-      socketService.on("taskDeleted", (deletedTask: Task) => {
-        //console.log("Received task deletion:", deletedTask);
-        // Ensure the deleted task has a valid id
-        if (deletedTask?.id) {
-          deleteTask(deletedTask.id); // Remove the task from the store
-        }
-      });
-
-      socketService.on("notification:new", (notification) => {
-        addNotification(notification); // Ajouter une notification au store
-      });
-      // socket.ts (Frontend)
-      socketService.on(
-        "bulkUpdateStatus",
-        (payload: { count: number; taskIds: string[]; status: TaskStatus }) => {
-          console.log("Received bulk update status:", payload);
-        }
-      );
+    // Only connect if we have a session with user ID
+    if (!session?.user?.id) {
+      console.log("[useSocket] No session or user ID, skipping connection");
+      return;
     }
 
-    // Cleanup à la déconnexion
-    return () => {
-      if (socketRef.current) {
-        socketService.off("taskAdded");
-        socketService.off("taskUpdated");
-        socketService.off("taskDeleted");
-        socketService.off("notification:new");
-        socketService.off("bulkUpdateStatus");
-      }
+    // Connecte-toi au WebSocket with user ID from session
+    socketRef.current = socketService.connect(session.user.id);
+
+    if (!socketRef.current) {
+      console.log("[useSocket] No socket connection established");
+      return;
+    }
+
+    console.log("[useSocket] Setting up global listeners");
+
+    // Update connection status
+    const handleConnect = () => {
+      console.log("[useSocket] Connected");
+      setIsConnected(true);
     };
-  }, [addTask, updateTaskInStore, deleteTask, addNotification, setTasks]);
+
+    const handleDisconnect = () => {
+      console.log("[useSocket] Disconnected");
+      setIsConnected(false);
+    };
+
+    // ✅ ONLY global notifications here - task events handled by TaskContext
+    const handleNotification = (notification: any) => {
+      console.log("[useSocket] Received notification:", notification);
+      addNotification(notification);
+    };
+
+    // Register listeners
+    socketRef.current.on("connect", handleConnect);
+    socketRef.current.on("disconnect", handleDisconnect);
+    socketService.on("notification:new", handleNotification);
+
+    // Set initial connection status
+    setIsConnected(socketService.isConnected());
+
+    // Cleanup
+    return () => {
+      console.log("[useSocket] Cleaning up global listeners");
+      if (socketRef.current) {
+        socketRef.current.off("connect", handleConnect);
+        socketRef.current.off("disconnect", handleDisconnect);
+      }
+      socketService.off("notification:new", handleNotification);
+    };
+  }, [session?.user?.id]); // ✅ Reconnect when session changes
 
   return {
     socket: socketRef.current,
-    isConnected: socketService.isConnected(),
+    isConnected,
     emit: socketService.emit.bind(socketService),
     joinTaskRoom: socketService.joinTaskRoom.bind(socketService),
     leaveTaskRoom: socketService.leaveTaskRoom.bind(socketService),

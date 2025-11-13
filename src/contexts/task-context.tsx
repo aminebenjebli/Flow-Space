@@ -155,9 +155,9 @@ export function TaskProvider({
     async (data: CreateTaskDto): Promise<Task | null> => {
       setIsLoading(true);
       try {
-        const taskData = { 
-          ...data, 
-          ...(projectId && { projectId }) 
+        const taskData = {
+          ...data,
+          ...(projectId && { projectId }),
         };
         console.log("Creating task with data:", taskData);
         const response = await api.tasks.create(taskData);
@@ -179,6 +179,17 @@ export function TaskProvider({
         }
 
         setTasks((prev) => [newTask, ...prev]);
+
+        // ✅ Emit WebSocket event for real-time sync
+        if (socketService.isConnected()) {
+          socketService.emit("taskAdded", newTask);
+          console.log("[TaskContext] Emitted taskAdded event:", newTask.id);
+        } else {
+          console.warn(
+            "[TaskContext] Socket not connected, task only added locally"
+          );
+        }
+
         toast.success("Task created successfully!");
         return newTask;
       } catch (error: any) {
@@ -192,43 +203,128 @@ export function TaskProvider({
         setIsLoading(false);
       }
     },
-    []
+    [projectId]
   );
-useEffect(() => {
-  // Listen for task updates
-  socketService.on("taskUpdated", (updatedTask: Task) => {
-    console.log("Received task update in TaskProvider:", updatedTask);
-    setTasks((prevTasks) =>
-      prevTasks.map((task) =>
-        task.id === updatedTask.id ? updatedTask : task
-      )
-    );
-  });
-  
-  
-  // Listen for task creation
-  socketService.on("taskAdded", (newTask: Task) => {
-    console.log("Received new task in TaskProvider:", newTask);
-    setTasks((prevTasks) => [newTask, ...prevTasks]);
-  });
 
+  // ✅ FIXED: WebSocket listeners with proper cleanup and deduplication
+  useEffect(() => {
+    console.log("[TaskContext] Setting up WebSocket listeners");
 
-  // Listen for task deletion
-  socketService.on("taskDeleted", (deletedTaskId: string) => {
-    console.log("Received task deletion:", deletedTaskId);
-   
-    // Update the state to reflect the deleted task
-    setTasks((prevTasks) =>
-      prevTasks.filter((task) => task.id !== deletedTaskId)
-    );
-  });
-   
-  return () => {
-    socketService.off("taskUpdated");
-    socketService.off("taskAdded");
-    socketService.off("taskDeleted");
-  };
-}, []);
+    // Handler functions defined to ensure they can be properly removed
+    const handleTaskAdded = (newTask: Task) => {
+      console.log("[TaskContext] Received taskAdded event:", newTask);
+
+      // ✅ PREVENT DUPLICATES: Check if task already exists before adding
+      setTasks((prevTasks) => {
+        const exists = prevTasks.some((task) => task.id === newTask.id);
+        if (exists) {
+          console.log(
+            "[TaskContext] Task already exists, skipping:",
+            newTask.id
+          );
+          return prevTasks;
+        }
+        console.log("[TaskContext] Adding new task to state:", newTask.id);
+        return [newTask, ...prevTasks];
+      });
+    };
+
+    const handleTaskUpdated = (updatedTask: Task) => {
+      console.log("[TaskContext] Received taskUpdated event:", updatedTask);
+      setTasks((prevTasks) =>
+        prevTasks.map((task) =>
+          task.id === updatedTask.id ? updatedTask : task
+        )
+      );
+
+      // Update current task if it's the one being updated
+      setCurrentTask((prev) =>
+        prev?.id === updatedTask.id ? updatedTask : prev
+      );
+    };
+
+    const handleTaskDeleted = (deletedTask: string | Task) => {
+      // Handle both string ID and full task object
+      const taskId =
+        typeof deletedTask === "string" ? deletedTask : deletedTask?.id;
+      console.log("[TaskContext] Received taskDeleted event, ID:", taskId);
+      console.log("[TaskContext] Received taskDeleted event, full data:", deletedTask);
+      console.log("[TaskContext] Type of received data:", typeof deletedTask);
+
+      if (!taskId) {
+        console.warn(
+          "[TaskContext] taskDeleted event missing id:",
+          deletedTask
+        );
+        return;
+      }
+
+      setTasks((prevTasks) => {
+        console.log("[TaskContext] Current tasks before delete:", prevTasks.map(t => t.id));
+        const filteredTasks = prevTasks.filter((task) => {
+          const shouldKeep = task.id !== taskId;
+          if (!shouldKeep) {
+            console.log("[TaskContext] Removing task from state:", task.id);
+          }
+          return shouldKeep;
+        });
+        console.log("[TaskContext] Tasks after delete:", filteredTasks.map(t => t.id));
+        return filteredTasks;
+      });
+
+      // Clear current task if it's the one being deleted
+      setCurrentTask((prev) => (prev?.id === taskId ? null : prev));
+    };
+
+    const handleBulkUpdateStatus = (payload: {
+      count: number;
+      taskIds: string[];
+      status: TaskStatus;
+    }) => {
+      console.log("[TaskContext] Received bulkUpdateStatus event:", payload);
+      const { taskIds, status } = payload;
+
+      setTasks((prev) =>
+        prev.map((t) =>
+          taskIds.includes(t.id)
+            ? { ...t, status, updatedAt: new Date().toISOString() }
+            : t
+        )
+      );
+
+      // Update current task if affected
+      setCurrentTask((prev) =>
+        prev && taskIds.includes(prev.id)
+          ? { ...prev, status, updatedAt: new Date().toISOString() }
+          : prev
+      );
+    };
+
+    // ✅ Wait for socket to connect before registering listeners
+    const timeoutId = setTimeout(() => {
+      if (!socketService.isConnected()) {
+        console.warn("[TaskContext] Socket not connected yet, but registering listeners anyway");
+      } else {
+        console.log("[TaskContext] Socket is connected, registering listeners");
+      }
+
+      // Register listeners
+      socketService.on("taskAdded", handleTaskAdded);
+      socketService.on("taskUpdated", handleTaskUpdated);
+      socketService.on("taskDeleted", handleTaskDeleted);
+      socketService.on("bulkUpdateStatus", handleBulkUpdateStatus);
+    }, 100); // Wait 100ms for socket to connect
+
+    // ✅ CLEANUP: Remove listeners on unmount
+    return () => {
+      clearTimeout(timeoutId);
+      console.log("[TaskContext] Cleaning up WebSocket listeners");
+      socketService.off("taskAdded", handleTaskAdded);
+      socketService.off("taskUpdated", handleTaskUpdated);
+      socketService.off("taskDeleted", handleTaskDeleted);
+      socketService.off("bulkUpdateStatus", handleBulkUpdateStatus);
+    };
+  }, []); // Empty deps - only register once per component mount
 
   const updateTask = useCallback(
     async (id: string, data: UpdateTaskDto): Promise<Task | null> => {
@@ -267,6 +363,19 @@ useEffect(() => {
           setCurrentTask(updatedTask);
         }
 
+        // ✅ Emit WebSocket event for real-time sync
+        if (socketService.isConnected()) {
+          socketService.emit("taskUpdated", updatedTask);
+          console.log(
+            "[TaskContext] Emitted taskUpdated event:",
+            updatedTask.id
+          );
+        } else {
+          console.warn(
+            "[TaskContext] Socket not connected, task only updated locally"
+          );
+        }
+
         toast.success("Task updated successfully!");
         return updatedTask;
       } catch (error: any) {
@@ -286,11 +395,29 @@ useEffect(() => {
   const deleteTask = useCallback(
     async (id: string): Promise<boolean> => {
       try {
+        console.log("[TaskContext] deleteTask called with ID:", id);
         await api.tasks.delete(id);
-        setTasks((prev) => prev.filter((task) => task.id !== id));
+        
+        console.log("[TaskContext] API delete successful, updating local state");
+        setTasks((prev) => {
+          const filtered = prev.filter((task) => task.id !== id);
+          console.log("[TaskContext] Local state updated, removed task:", id);
+          return filtered;
+        });
 
         if (currentTask?.id === id) {
           setCurrentTask(null);
+        }
+
+        // ✅ Emit WebSocket event for real-time sync
+        if (socketService.isConnected()) {
+          console.log("[TaskContext] Emitting taskDeleted event with ID:", id, "Type:", typeof id);
+          socketService.emit("taskDeleted", id);
+          console.log("[TaskContext] Emitted taskDeleted event:", id);
+        } else {
+          console.warn(
+            "[TaskContext] Socket not connected, task only deleted locally"
+          );
         }
 
         toast.success("Task deleted successfully!");
@@ -331,11 +458,6 @@ useEffect(() => {
               : task
           )
         );
-          socketService.emit("bulkUpdateStatus", {
-        count,
-        taskIds: data.taskIds,  // Send task IDs and the status
-        status: data.status,    // Send the status applied to those tasks
-      });
 
         toast.success(
           `${count} task${count === 1 ? "" : "s"} updated successfully!`
@@ -357,32 +479,6 @@ useEffect(() => {
     },
     []
   );
-     // dans TaskProvider (le même useEffect où tu écoutes déjà d'autres events)
-
-  const onBulk = (payload: { count: number; taskIds: string[]; status: TaskStatus }) => {
-    console.log("Received bulk update status:", payload);
-    const { taskIds, status } = payload;
-
-    setTasks(prev =>
-      prev.map(t =>
-        taskIds.includes(t.id)
-          ? { ...t, status, updatedAt: new Date().toISOString() }
-          : t
-      )
-    );
-
-    // optionnel: si la task ouverte est affectée
-    setCurrentTask(prev =>
-      prev && taskIds.includes(prev.id)
-        ? { ...prev, status, updatedAt: new Date().toISOString() }
-        : prev
-    );
-
-    // optionnel: rafraîchir les stats
-    fetchStats?.();
-     socketService.on("bulkUpdateStatus", onBulk);
-  return () => socketService.off("bulkUpdateStatus", onBulk);
-  };
 
   const fetchStats = useCallback(async () => {
     try {

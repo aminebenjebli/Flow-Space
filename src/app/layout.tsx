@@ -7,9 +7,6 @@ import SessionWarning from "@/components/auth/session-warning";
 import RegisterServiceWorker from "@/components/pwa/register-sw";
 import PWAInstallPrompt from "@/components/pwa/install-prompt";
 import PWADebugPanel from "@/components/pwa/debug-panel";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth/auth";
-import SocketBridge from "@/components/realtime/SocketBridge";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -39,9 +36,6 @@ export default  async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-   const session = await getServerSession(authOptions);
-  const userId = session?.user?.id ?? ""; // assure-toi que l'ID utilisateur est bien récupéré
-
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -55,7 +49,6 @@ export default  async function RootLayout({
       </head>
       <body className={`${inter.variable} font-sans antialiased`}>
         <Providers>
-            {userId && <SocketBridge />} {/* Connecte-toi au WebSocket seulement si l'utilisateur est connecté */}
           {children}
           <SessionWarning warningTimeMinutes={5} />
           <Toaster
