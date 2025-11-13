@@ -1,42 +1,22 @@
 "use client";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { useProfile } from "@/contexts/profile-context";
 import { useTask, TaskProvider } from "@/contexts/task-context";
-import { api } from "@/lib/api/axios";
+import { api, Challenge } from "@/lib/api/axios";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "react-hot-toast";
-import PWAInstallButton from "@/components/pwa/install-button";
 import {
   CheckCircle,
   Clock,
   TrendingUp,
   Plus,
-  Bell,
-  Search,
-  User,
   BarChart3,
-  LogOut,
-  ChevronDown,
-  Settings,
-  Menu,
-  X,
   Trophy,
-  Users,
   Calendar,
 } from "lucide-react";
-import { Challenge } from '@/lib/api/axios';
 
 // Import Gamification Components
 import LeaderboardPreview from "@/components/gamification/LeaderboardPreview";
@@ -81,7 +61,7 @@ function ChallengesBanner({ userId }: { userId: string }) {
         setLoading(true);
 
         // Fetch user's teams
-        const teamsResponse = await api.get('/teams/mine');
+        const teamsResponse = await api.get("/teams/mine");
         setUserTeams(teamsResponse.data || []);
 
         // Fetch challenges for the user
@@ -100,7 +80,10 @@ function ChallengesBanner({ userId }: { userId: string }) {
 
   const handleJoinChallenge = async (challengeId: string) => {
     try {
-      const response = await api.gamification.joinChallenge(userId, challengeId);
+      const response = await api.gamification.joinChallenge(
+        userId,
+        challengeId
+      );
       toast.success(response.message);
       // Refresh challenges
       const updatedChallenges = await api.gamification.getChallenges(userId);
@@ -112,14 +95,18 @@ function ChallengesBanner({ userId }: { userId: string }) {
   };
 
   const isUserOwnerOfChallenge = (challenge: Challenge) => {
-    const team = userTeams.find(t => t.id === challenge.teamId);
-    return team?.members?.some((member: any) => member.userId === userId && member.role === 'OWNER');
+    const team = userTeams.find((t) => t.id === challenge.teamId);
+    return team?.members?.some(
+      (member: any) => member.userId === userId && member.role === "OWNER"
+    );
   };
 
   if (loading) {
     return (
       <div className="flow-card p-6">
-        <h3 className="text-lg font-semibold text-foreground mb-4">Active Challenges</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-4">
+          Active Challenges
+        </h3>
         <div className="flex items-center justify-center h-32">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
@@ -130,7 +117,9 @@ function ChallengesBanner({ userId }: { userId: string }) {
   if (error) {
     return (
       <div className="flow-card p-6">
-        <h3 className="text-lg font-semibold text-foreground mb-4">Active Challenges</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-4">
+          Active Challenges
+        </h3>
         <p className="text-red-500">{error}</p>
       </div>
     );
@@ -139,7 +128,9 @@ function ChallengesBanner({ userId }: { userId: string }) {
   if (challenges.length === 0) {
     return (
       <div className="flow-card p-6">
-        <h3 className="text-lg font-semibold text-foreground mb-4">Active Challenges</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-4">
+          Active Challenges
+        </h3>
         <div className="text-center py-8 text-muted-foreground">
           <Trophy className="h-8 w-8 mx-auto mb-2 opacity-50" />
           <p className="text-sm">No active challenges</p>
@@ -151,21 +142,30 @@ function ChallengesBanner({ userId }: { userId: string }) {
 
   return (
     <div className="flow-card p-6">
-      <h3 className="text-lg font-semibold text-foreground mb-4">Active Challenges</h3>
+      <h3 className="text-lg font-semibold text-foreground mb-4">
+        Active Challenges
+      </h3>
       <div className="space-y-4">
         {challenges.map((challenge) => {
           const isOwner = isUserOwnerOfChallenge(challenge);
           const daysRemaining = Math.ceil(
             (new Date(challenge.endDate).getTime() - new Date().getTime()) /
-            (1000 * 60 * 60 * 24)
+              (1000 * 60 * 60 * 24)
           );
 
           return (
-            <div key={challenge.id} className="p-4 border border-border rounded-lg bg-muted/30">
+            <div
+              key={challenge.id}
+              className="p-4 border border-border rounded-lg bg-muted/30"
+            >
               <div className="flex justify-between items-start">
                 <div>
-                  <h4 className="font-medium text-card-foreground">{challenge.name}</h4>
-                  <p className="text-sm text-muted-foreground mt-1">{challenge.description}</p>
+                  <h4 className="font-medium text-card-foreground">
+                    {challenge.name}
+                  </h4>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {challenge.description}
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1 bg-secondary px-2 py-1 rounded-md text-xs">
@@ -178,11 +178,14 @@ function ChallengesBanner({ userId }: { userId: string }) {
                 <div className="flex items-center gap-1">
                   <Calendar className="h-3.5 w-3.5" />
                   <span>
-                    {new Date(challenge.startDate).toLocaleDateString()} to {new Date(challenge.endDate).toLocaleDateString()}
+                    {new Date(challenge.startDate).toLocaleDateString()} to{" "}
+                    {new Date(challenge.endDate).toLocaleDateString()}
                   </span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <span>{daysRemaining} {daysRemaining === 1 ? 'day' : 'days'} left</span>
+                  <span>
+                    {daysRemaining} {daysRemaining === 1 ? "day" : "days"} left
+                  </span>
                 </div>
               </div>
               {!isOwner && !challenge.userJoined && (
@@ -214,10 +217,8 @@ function ChallengesBanner({ userId }: { userId: string }) {
 
 function DashboardContent({ session }: { readonly session: any }) {
   const router = useRouter();
-  const { profile, fetchProfile } = useProfile();
+  const { fetchProfile } = useProfile();
   const { tasks, stats: taskStats, fetchTasks, fetchStats } = useTask();
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (session?.user?.id) {
@@ -226,29 +227,6 @@ function DashboardContent({ session }: { readonly session: any }) {
       fetchStats();
     }
   }, [session?.user?.id, fetchProfile, fetchTasks, fetchStats]);
-
-  const handleLogout = async () => {
-    try {
-      setIsLoggingOut(true);
-      if (session?.refreshToken) {
-        await api.auth.logout(session.refreshToken);
-      }
-      await signOut({
-        callbackUrl: "/login",
-        redirect: true,
-      });
-      toast.success("Logged out successfully");
-    } catch (error) {
-      console.error("Logout error:", error);
-      toast.error("Error during logout, but session will be cleared");
-      await signOut({
-        callbackUrl: "/login",
-        redirect: true,
-      });
-    } finally {
-      setIsLoggingOut(false);
-    }
-  };
 
   const recentTasks = tasks.slice(0, 5);
 
@@ -291,171 +269,6 @@ function DashboardContent({ session }: { readonly session: any }) {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="bg-card shadow-sm border-b border-border">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="w-8 h-8 flow-gradient-primary rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">F</span>
-              </div>
-              <h1 className="text-2xl font-bold text-foreground">FlowSpace</h1>
-              {/* Enhanced Navigation */}
-              <nav className="hidden md:flex items-center space-x-1 ml-8">
-                <button
-                  onClick={() => router.push("/dashboard")}
-                  className="px-4 py-2 text-sm font-medium text-primary bg-primary/10 rounded-lg hover:bg-primary/20 transition-all duration-200 border border-primary/20"
-                >
-                  Dashboard
-                </button>
-                <button
-                  onClick={() => router.push("/tasks")}
-                  className="px-4 py-2 text-sm font-medium text-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200"
-                >
-                  Tasks
-                </button>
-                <button
-                  onClick={() => router.push("/teams")}
-                  className="px-4 py-2 text-sm font-medium text-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200"
-                >
-                  Teams
-                </button>
-                <button
-                  onClick={() => router.push("/analytics")}
-                  className="px-4 py-2 text-sm font-medium text-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200"
-                >
-                  Analytics
-                </button>
-              </nav>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <input
-                  type="text"
-                  placeholder="Search tasks..."
-                  className="pl-10 pr-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-foreground placeholder:text-muted-foreground transition-colors"
-                />
-              </div>
-              {/* PWA Install Button */}
-              <div className="hidden sm:block">
-                <PWAInstallButton />
-              </div>
-              <ThemeToggle />
-              {/* Mobile menu button */}
-              <div className="sm:hidden">
-                <button
-                  aria-label="Toggle menu"
-                  onClick={() => setMobileMenuOpen((v) => !v)}
-                  className="p-2 rounded-md"
-                >
-                  {mobileMenuOpen ? (
-                    <X className="h-5 w-5" />
-                  ) : (
-                    <Menu className="h-5 w-5" />
-                  )}
-                </button>
-              </div>
-              <button className="relative p-2 text-foreground hover:text-primary transition-colors">
-                <Bell className="h-5 w-5" />
-                <span className="absolute -top-1 -right-1 h-4 w-4 bg-destructive rounded-full text-xs text-destructive-foreground flex items-center justify-center">
-                  3
-                </span>
-              </button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="flex items-center space-x-2 hover:opacity-80 transition-opacity cursor-pointer">
-                    <div className="w-8 h-8 rounded-full overflow-hidden bg-muted flex items-center justify-center">
-                      {profile?.profilePicture ? (
-                        <img
-                          src={profile.profilePicture}
-                          alt="Profile"
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flow-gradient-secondary rounded-full flex items-center justify-center">
-                          <User className="h-4 w-4 text-white" />
-                        </div>
-                      )}
-                    </div>
-                    <span className="font-medium text-foreground">
-                      {profile?.name || session.user?.firstName}
-                    </span>
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end" forceMount>
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">
-                        {profile?.name || session.user?.firstName}
-                      </p>
-                      <p className="text-xs leading-none text-muted-foreground">
-                        {session.user?.email}
-                      </p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => router.push("/profile")}
-                    className="cursor-pointer"
-                  >
-                    <User className="mr-2 h-4 w-4" />
-                    <span>Profile</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => router.push("/settings")}
-                    className="cursor-pointer"
-                  >
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Settings</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={handleLogout}
-                    className="cursor-pointer text-destructive focus:text-destructive"
-                    disabled={isLoggingOut}
-                  >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>{isLoggingOut ? "Logging out..." : "Log out"}</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </div>
-        {/* Mobile menu content */}
-        {mobileMenuOpen && (
-          <div className="sm:hidden px-6 pb-4">
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={() => router.push("/dashboard")}
-                className="text-left px-3 py-2 rounded hover:bg-primary/10"
-              >
-                Dashboard
-              </button>
-              <button
-                onClick={() => router.push("/tasks")}
-                className="text-left px-3 py-2 rounded hover:bg-primary/10"
-              >
-                Tasks
-              </button>
-              <button
-                onClick={() => router.push("/teams")}
-                className="text-left px-3 py-2 rounded hover:bg-primary/10"
-              >
-                Teams
-              </button>
-              <button
-                onClick={() => router.push("/analytics")}
-                className="text-left px-3 py-2 rounded hover:bg-primary/10"
-              >
-                Analytics
-              </button>
-            </div>
-          </div>
-        )}
-      </header>
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8">
         {/* Welcome Section */}
@@ -591,10 +404,7 @@ function DashboardContent({ session }: { readonly session: any }) {
             </h3>
             <div className="space-y-4">
               {[...Array(4)].map((activity, index) => (
-                <div
-                  key={index}
-                  className="flex items-start space-x-3"
-                >
+                <div key={index} className="flex items-start space-x-3">
                   <div className="w-8 h-8 flow-gradient-secondary rounded-full flex items-center justify-center">
                     <span className="text-white text-xs font-medium">S</span>
                   </div>
@@ -602,9 +412,7 @@ function DashboardContent({ session }: { readonly session: any }) {
                     <p className="text-sm text-foreground">
                       <span className="font-medium">User</span> completed task
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      2 hours ago
-                    </p>
+                    <p className="text-xs text-muted-foreground">2 hours ago</p>
                   </div>
                 </div>
               ))}

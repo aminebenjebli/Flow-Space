@@ -1,16 +1,22 @@
-import { redirect } from 'next/navigation';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth/auth';
-import { Project } from '@/types/team';
-import { Task } from '@/types/index';
-import { TaskCard } from '@/components/tasks/task-card';
-import { TaskFilters } from '@/components/tasks/task-filters';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ProjectSettings } from '@/components/projects/project-settings';
-import { ProjectTasksManager } from '@/components/projects/project-tasks-manager';
-import { TaskProvider } from '@/contexts/task-context';
-import { FolderOpen, Plus, ArrowLeft, Settings, CheckSquare } from 'lucide-react';
-import Link from 'next/link';
+import { redirect } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth/auth";
+import { Project } from "@/types/team";
+import { Task } from "@/types/index";
+import { TaskCard } from "@/components/tasks/task-card";
+import { TaskFilters } from "@/components/tasks/task-filters";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ProjectSettings } from "@/components/projects/project-settings";
+import { ProjectTasksManager } from "@/components/projects/project-tasks-manager";
+import { TaskProvider } from "@/contexts/task-context";
+import {
+  FolderOpen,
+  Plus,
+  ArrowLeft,
+  Settings,
+  CheckSquare,
+} from "lucide-react";
+import Link from "next/link";
 
 interface ProjectPageProps {
   params: Promise<{
@@ -21,57 +27,66 @@ interface ProjectPageProps {
 async function getProject(projectId: string): Promise<Project | null> {
   const session = await getServerSession(authOptions);
   if (!session?.accessToken) {
-    redirect('/login');
+    redirect("/login");
   }
 
   try {
-    console.log('Fetching project:', projectId);
-    
-    // Try direct project endpoint first with caching
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/projects/${projectId}`, {
-      headers: {
-        'Authorization': `Bearer ${session.accessToken}`,
-      },
-      next: { revalidate: 30 }, // Cache for 30 seconds
-    });
+    console.log("Fetching project:", projectId);
 
-    console.log('Direct project response status:', response.status);
+    // Try direct project endpoint first with caching
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/projects/${projectId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${session.accessToken}`,
+        },
+        next: { revalidate: 30 }, // Cache for 30 seconds
+      }
+    );
+
+    console.log("Direct project response status:", response.status);
 
     if (response.ok) {
       const project = await response.json();
-      console.log('Direct project response:', project);
+      console.log("Direct project response:", project);
       return project;
     } else {
-      console.log('Direct project failed, trying fallback through teams...');
+      console.log("Direct project failed, trying fallback through teams...");
     }
 
     // Fallback: Search through teams (for backward compatibility)
-    const teamsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/teams/mine`, {
-      headers: {
-        'Authorization': `Bearer ${session.accessToken}`,
-      },
-      next: { revalidate: 30 },
-    });
+    const teamsResponse = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/teams/mine`,
+      {
+        headers: {
+          Authorization: `Bearer ${session.accessToken}`,
+        },
+        next: { revalidate: 30 },
+      }
+    );
 
     if (!teamsResponse.ok) {
-      throw new Error('Failed to fetch teams');
+      throw new Error("Failed to fetch teams");
     }
 
     const teams = await teamsResponse.json();
-    
+
     // Parallelize team project fetches
     const projectPromises = teams.map(async (team: any) => {
       try {
-        const projectsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/projects/by-team/${team.id}`, {
-          headers: {
-            'Authorization': `Bearer ${session.accessToken}`,
-          },
-          next: { revalidate: 30 },
-        });
+        const projectsResponse = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/projects/by-team/${team.id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${session.accessToken}`,
+            },
+            next: { revalidate: 30 },
+          }
+        );
 
         if (projectsResponse.ok) {
           const projects: Project[] = await projectsResponse.json();
-          const project = projects.find(p => p.id === projectId);
+          const project = projects.find((p) => p.id === projectId);
           if (project) {
             return { ...project, team };
           }
@@ -83,9 +98,9 @@ async function getProject(projectId: string): Promise<Project | null> {
     });
 
     const results = await Promise.all(projectPromises);
-    return results.find(p => p !== null) || null;
+    return results.find((p) => p !== null) || null;
   } catch (error) {
-    console.error('Failed to fetch project:', error);
+    console.error("Failed to fetch project:", error);
     return null;
   }
 }
@@ -97,12 +112,15 @@ async function getCurrentUserTeams() {
   }
 
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/teams/mine`, {
-      headers: {
-        'Authorization': `Bearer ${session.accessToken}`,
-      },
-      next: { revalidate: 30 }, // Cache for 30 seconds
-    });
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/teams/mine`,
+      {
+        headers: {
+          Authorization: `Bearer ${session.accessToken}`,
+        },
+        next: { revalidate: 30 }, // Cache for 30 seconds
+      }
+    );
 
     if (!response.ok) {
       return [];
@@ -110,12 +128,15 @@ async function getCurrentUserTeams() {
 
     return response.json();
   } catch (error) {
-    console.error('Failed to fetch teams:', error);
+    console.error("Failed to fetch teams:", error);
     return [];
   }
 }
 
-async function getProjectTasks(projectId: string, searchParams: any): Promise<{ tasks: Task[]; total: number }> {
+async function getProjectTasks(
+  projectId: string,
+  searchParams: any
+): Promise<{ tasks: Task[]; total: number }> {
   const session = await getServerSession(authOptions);
   if (!session?.accessToken) {
     return { tasks: [], total: 0 };
@@ -123,31 +144,34 @@ async function getProjectTasks(projectId: string, searchParams: any): Promise<{ 
 
   try {
     const params = new URLSearchParams();
-    params.set('projectId', projectId);
-    
+    params.set("projectId", projectId);
+
     // Add search params if they exist and are strings
-    if (searchParams.status && typeof searchParams.status === 'string') {
-      params.set('status', searchParams.status);
+    if (searchParams.status && typeof searchParams.status === "string") {
+      params.set("status", searchParams.status);
     }
-    if (searchParams.priority && typeof searchParams.priority === 'string') {
-      params.set('priority', searchParams.priority);
+    if (searchParams.priority && typeof searchParams.priority === "string") {
+      params.set("priority", searchParams.priority);
     }
-    if (searchParams.q && typeof searchParams.q === 'string') {
-      params.set('q', searchParams.q);
+    if (searchParams.q && typeof searchParams.q === "string") {
+      params.set("q", searchParams.q);
     }
-    if (searchParams.sortBy && typeof searchParams.sortBy === 'string') {
-      params.set('sortBy', searchParams.sortBy);
+    if (searchParams.sortBy && typeof searchParams.sortBy === "string") {
+      params.set("sortBy", searchParams.sortBy);
     }
-    if (searchParams.page && typeof searchParams.page === 'string') {
-      params.set('page', searchParams.page);
+    if (searchParams.page && typeof searchParams.page === "string") {
+      params.set("page", searchParams.page);
     }
 
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/tasks?${params}`, {
-      headers: {
-        'Authorization': `Bearer ${session.accessToken}`,
-      },
-      next: { revalidate: 10 }, // Cache tasks for 10 seconds (shorter since they change more often)
-    });
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/tasks?${params}`,
+      {
+        headers: {
+          Authorization: `Bearer ${session.accessToken}`,
+        },
+        next: { revalidate: 10 }, // Cache tasks for 10 seconds (shorter since they change more often)
+      }
+    );
 
     if (!response.ok) {
       return { tasks: [], total: 0 };
@@ -159,7 +183,7 @@ async function getProjectTasks(projectId: string, searchParams: any): Promise<{ 
       total: result.total || result.tasks?.length || 0,
     };
   } catch (error) {
-    console.error('Failed to fetch tasks:', error);
+    console.error("Failed to fetch tasks:", error);
     return { tasks: [], total: 0 };
   }
 }
@@ -172,42 +196,44 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   ]);
 
   if (!project) {
-    redirect('/teams');
+    redirect("/teams");
   }
 
   // Get current user's session to check permissions
   const session = await getServerSession(authOptions);
   const currentUserId = session?.user?.id;
-  
+
   // Check if user can admin this project
   const isOwner = project.ownerId === currentUserId;
-  
+
   // Check if user is team owner (if project is attached to a team)
   let isTeamOwner = false;
   if (project.teamId) {
     // Find the team in userTeams to check the user's role
     const team = userTeams.find((t: any) => t.id === project.teamId);
-    console.log('Team lookup:', {
+    console.log("Team lookup:", {
       projectTeamId: project.teamId,
       teamFound: !!team,
       teamMembers: team?.members,
-      currentUserId
+      currentUserId,
     });
     if (team && team.members) {
-      const userMembership = team.members.find((m: any) => m.userId === currentUserId || m.id === currentUserId);
-      console.log('User membership check:', {
+      const userMembership = team.members.find(
+        (m: any) => m.userId === currentUserId || m.id === currentUserId
+      );
+      console.log("User membership check:", {
         userMembership,
-        userRole: userMembership?.role
+        userRole: userMembership?.role,
       });
-      isTeamOwner = userMembership?.role === 'OWNER';
+      isTeamOwner = userMembership?.role === "OWNER";
     }
   }
-  
+
   // User can admin ONLY if they are project owner OR team owner
   const canAdmin = isOwner || isTeamOwner;
 
   // Debug logging
-  console.log('Project permissions check:', {
+  console.log("Project permissions check:", {
     projectId: project.id,
     projectName: project.name,
     currentUserId,
@@ -216,42 +242,44 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
     projectTeamId: project.teamId,
     isTeamOwner,
     canAdmin,
-    userTeamsCount: userTeams.length
+    userTeamsCount: userTeams.length,
   });
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
-          <Link 
-            href={project.team ? `/teams/${project.teamId}` : '/teams'}
-            className="flex items-center text-muted-foreground hover:text-card-foreground transition-colors"
+          <Link
+            href={project.team ? `/teams/${project.teamId}` : "/teams"}
+            className="flex items-center text-sm sm:text-base text-muted-foreground hover:text-card-foreground transition-colors"
           >
             <ArrowLeft className="h-4 w-4 mr-1" />
-            {project.team ? 'Back to Team' : 'Back to Teams'}
+            {project.team ? "Back to Team" : "Back to Teams"}
           </Link>
         </div>
 
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-card-foreground mb-2">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6 sm:mb-8">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-bold text-card-foreground mb-2">
               {project.name}
             </h1>
-            <div className="flex items-center gap-4">
-              <p className="text-muted-foreground">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+              <p className="text-sm sm:text-base text-muted-foreground">
                 {project.description || `Project tasks and settings`}
               </p>
-              <div className="flex items-center gap-2">
-                <span className={`px-2 py-1 text-xs rounded-full ${
-                  project.visibility === 'PUBLIC' 
-                    ? 'bg-green-100 text-green-700' 
-                    : 'bg-gray-100 text-gray-700'
-                }`}>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span
+                  className={`px-2 py-1 text-xs rounded-full ${
+                    project.visibility === "PUBLIC"
+                      ? "bg-green-100 text-green-700"
+                      : "bg-gray-100 text-gray-700"
+                  }`}
+                >
                   {project.visibility}
                 </span>
                 {project.team && (
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-xs sm:text-sm text-muted-foreground">
                     Team: {project.team.name}
                   </span>
                 )}
@@ -261,18 +289,26 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         </div>
 
         {/* Project Info */}
-        <div className="flow-card p-6 mb-8">
+        <div className="flow-card p-4 sm:p-6 mb-6 sm:mb-8">
           <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Project Details</h3>
-              <p className="text-muted-foreground mb-2">
-                {project.description || 'No description provided'}
+            <div className="flex-1 min-w-0">
+              <h3 className="text-base sm:text-lg font-semibold mb-2">
+                Project Details
+              </h3>
+              <p className="text-sm text-muted-foreground mb-2">
+                {project.description || "No description provided"}
               </p>
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <span>Owner: {project.owner?.name || 'Unknown'}</span>
-                <span>Created: {new Date(project.createdAt).toLocaleDateString()}</span>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
+                <span>Owner: {project.owner?.name || "Unknown"}</span>
+                <span className="hidden sm:inline">•</span>
+                <span>
+                  Created: {new Date(project.createdAt).toLocaleDateString()}
+                </span>
                 {project.team && (
-                  <span>Team: {project.team.name}</span>
+                  <>
+                    <span className="hidden sm:inline">•</span>
+                    <span>Team: {project.team.name}</span>
+                  </>
                 )}
               </div>
             </div>
@@ -280,8 +316,8 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="tasks" className="mt-8">
-          <TabsList className="grid w-full grid-cols-2">
+        <Tabs defaultValue="tasks" className="mt-6 sm:mt-8">
+          <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger value="tasks" className="flex items-center gap-2">
               <CheckSquare className="h-4 w-4" />
               Tasks
@@ -296,7 +332,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
 
           <TabsContent value="tasks" className="mt-6">
             <TaskProvider projectId={projectId}>
-              <ProjectTasksManager 
+              <ProjectTasksManager
                 projectId={projectId}
                 projectName={project.name}
                 isProjectAdmin={canAdmin}
@@ -306,7 +342,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
 
           {canAdmin && (
             <TabsContent value="settings" className="mt-6">
-              <ProjectSettings 
+              <ProjectSettings
                 project={project}
                 userTeams={userTeams}
                 canAdmin={canAdmin}

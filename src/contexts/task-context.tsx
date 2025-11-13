@@ -116,15 +116,21 @@ export function TaskProvider({
         });
       } catch (error: any) {
         console.error("Error fetching tasks:", error);
-        console.error("Error response:", error.response);
-        console.error("Error status:", error.response?.status);
-        console.error("Error data:", error.response?.data);
 
-        const errorMessage =
-          error.response?.data?.message ||
-          error.message ||
-          "Failed to fetch tasks";
-        toast.error(errorMessage);
+        // Only show toast for non-timeout errors
+        if (!error.message?.includes("timeout")) {
+          console.error("Error response:", error.response);
+          console.error("Error status:", error.response?.status);
+          console.error("Error data:", error.response?.data);
+
+          const errorMessage =
+            error.response?.data?.message ||
+            error.message ||
+            "Failed to fetch tasks";
+          toast.error(errorMessage);
+        } else {
+          console.warn("Tasks fetch timeout - retrying in background");
+        }
       } finally {
         setIsLoading(false);
       }
@@ -368,9 +374,16 @@ export function TaskProvider({
       console.log("Processed stats data:", statsData);
       setStats(statsData);
     } catch (error: any) {
-      console.error("Error fetching stats:", error);
-      console.error("Stats error response:", error.response);
-      toast.error("Failed to fetch task statistics");
+      // Only show toast for non-timeout errors
+      if (!error.message?.includes("timeout")) {
+        console.error("Error fetching stats:", error);
+        console.error("Stats error response:", error.response);
+        toast.error("Failed to fetch task statistics");
+      } else {
+        console.warn(
+          "Stats fetch timeout - this is expected if backend is slow"
+        );
+      }
     }
   }, []);
 

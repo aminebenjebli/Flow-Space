@@ -110,7 +110,7 @@ export interface PointsHistoryEntry {
 // Create axios instance
 const axiosInstance: AxiosInstance = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8050/api/v1", // Correct base URL to include /api/v1
-  timeout: 10000,
+  timeout: 30000, // Increased to 30 seconds to handle slow backend operations
   headers: {
     "Content-Type": "application/json",
     "Cache-Control": "no-cache",
@@ -226,7 +226,8 @@ export const api = {
       api.post("/auth/reset", { token, password }),
     refresh: (refreshToken: string) =>
       api.post("/auth/refresh", { refreshToken }),
-    logout: (refreshToken?: string) => api.post("/auth/logout", { refreshToken }),
+    logout: (refreshToken?: string) =>
+      api.post("/auth/logout", { refreshToken }),
   },
 
   // Task management methods
@@ -318,8 +319,6 @@ export const api = {
         .get(`/gamification/stats/${userId}`)
         .then((res) => res.data),
 
-  
-
     getTeamLeaderboard: (
       teamId: string
     ): Promise<{
@@ -348,18 +347,18 @@ export const api = {
         .then((res) => res.data),
 
     // Challenges
-  createChallenge: (dto: {
-    name: string;
-    description: string;
-    pointsRewarded: number;
-    startDate: string;
-    endDate: string;
-    teamId: string;
-    isActive?: boolean;
-  }): Promise<Challenge> =>
-    axiosInstance
-      .post("/gamification/challenges", dto)
-      .then((res) => res.data),
+    createChallenge: (dto: {
+      name: string;
+      description: string;
+      pointsRewarded: number;
+      startDate: string;
+      endDate: string;
+      teamId: string;
+      isActive?: boolean;
+    }): Promise<Challenge> =>
+      axiosInstance
+        .post("/gamification/challenges", dto)
+        .then((res) => res.data),
 
     getChallenges: (userId?: string): Promise<Challenge[]> =>
       axiosInstance
@@ -370,7 +369,6 @@ export const api = {
       axiosInstance
         .get(`/gamification/challenges/user/${userId}`)
         .then((res) => res.data),
-
 
     joinChallenge: (
       userId: string,

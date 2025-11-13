@@ -40,9 +40,18 @@ export default function PointsDisplay({ userId }: { userId: string }) {
           streak: response.currentStreak,
           pointsToNextLevel: levelInfo.pointsToNextLevel,
         });
-      } catch (error) {
-        console.error("Failed to fetch user stats:", error);
-        toast.error("Failed to load user stats");
+      } catch (error: any) {
+        // Only log timeout errors, don't show toast for non-critical gamification stats
+        if (error.message?.includes("timeout")) {
+          console.warn(
+            "Stats fetch timeout - this is expected if backend is slow"
+          );
+        } else {
+          console.error("Failed to fetch user stats:", error);
+          // Only show toast for non-timeout errors
+          toast.error("Failed to load user stats");
+        }
+        // Set default values on error
         setStats((prev) => ({
           ...prev,
           points: 0,
