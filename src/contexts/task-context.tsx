@@ -248,7 +248,10 @@ export function TaskProvider({
       const taskId =
         typeof deletedTask === "string" ? deletedTask : deletedTask?.id;
       console.log("[TaskContext] Received taskDeleted event, ID:", taskId);
-      console.log("[TaskContext] Received taskDeleted event, full data:", deletedTask);
+      console.log(
+        "[TaskContext] Received taskDeleted event, full data:",
+        deletedTask
+      );
       console.log("[TaskContext] Type of received data:", typeof deletedTask);
 
       if (!taskId) {
@@ -260,7 +263,10 @@ export function TaskProvider({
       }
 
       setTasks((prevTasks) => {
-        console.log("[TaskContext] Current tasks before delete:", prevTasks.map(t => t.id));
+        console.log(
+          "[TaskContext] Current tasks before delete:",
+          prevTasks.map((t) => t.id)
+        );
         const filteredTasks = prevTasks.filter((task) => {
           const shouldKeep = task.id !== taskId;
           if (!shouldKeep) {
@@ -268,7 +274,10 @@ export function TaskProvider({
           }
           return shouldKeep;
         });
-        console.log("[TaskContext] Tasks after delete:", filteredTasks.map(t => t.id));
+        console.log(
+          "[TaskContext] Tasks after delete:",
+          filteredTasks.map((t) => t.id)
+        );
         return filteredTasks;
       });
 
@@ -303,7 +312,9 @@ export function TaskProvider({
     // ✅ Wait for socket to connect before registering listeners
     const timeoutId = setTimeout(() => {
       if (!socketService.isConnected()) {
-        console.warn("[TaskContext] Socket not connected yet, but registering listeners anyway");
+        console.warn(
+          "[TaskContext] Socket not connected yet, but registering listeners anyway"
+        );
       } else {
         console.log("[TaskContext] Socket is connected, registering listeners");
       }
@@ -397,8 +408,10 @@ export function TaskProvider({
       try {
         console.log("[TaskContext] deleteTask called with ID:", id);
         await api.tasks.delete(id);
-        
-        console.log("[TaskContext] API delete successful, updating local state");
+
+        console.log(
+          "[TaskContext] API delete successful, updating local state"
+        );
         setTasks((prev) => {
           const filtered = prev.filter((task) => task.id !== id);
           console.log("[TaskContext] Local state updated, removed task:", id);
@@ -411,7 +424,12 @@ export function TaskProvider({
 
         // ✅ Emit WebSocket event for real-time sync
         if (socketService.isConnected()) {
-          console.log("[TaskContext] Emitting taskDeleted event with ID:", id, "Type:", typeof id);
+          console.log(
+            "[TaskContext] Emitting taskDeleted event with ID:",
+            id,
+            "Type:",
+            typeof id
+          );
           socketService.emit("taskDeleted", id);
           console.log("[TaskContext] Emitted taskDeleted event:", id);
         } else {
