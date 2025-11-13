@@ -1,9 +1,5 @@
 import { io, Socket } from "socket.io-client";
-import {
-  useAuthStore,
-  useTasksStore,
-  useNotificationsStore,
-} from "@/store/index";
+import { useAuthStore, useTasksStore, useNotificationsStore } from "@/store/index";
 
 class SocketService {
   private socket: Socket | null = null;
@@ -21,7 +17,9 @@ class SocketService {
       return null;
     }
 
-    const socketUrl = process.env.NEXT_PUBLIC_WS_URL || "http://127.0.0.1:8050";
+   const socketUrl = `${process.env.NEXT_PUBLIC_WS_URL || "ws://127.0.0.1:8050"}/gamification`;
+       
+
 
     this.socket = io(socketUrl, {
       auth: {
@@ -111,6 +109,50 @@ class SocketService {
     this.emit("leave-project-room", { projectId });
   }
 
+  // Gamification-specific methods
+  // Points methods
+  joinGamificationRoom(userId: string) {
+    this.emit("join-gamification-room", { userId });
+  }
+
+  leaveGamificationRoom(userId: string) {
+    this.emit("leave-gamification-room", { userId });
+  }
+
+  // Event subscription methods for gamification
+  onPointsUpdated(callback: (data: any) => void) {
+    this.on("pointsUpdated", callback);
+  }
+
+  onAchievementUnlocked(callback: (data: any) => void) {
+    this.on("achievementUnlocked", callback);
+  }
+
+  onLeaderboardUpdated(callback: (data: any) => void) {
+    this.on("leaderboardUpdated", callback);
+  }
+
+  onChallengeUpdated(callback: (data: any) => void) {
+    this.on("challengeUpdated", callback);
+  }
+
+  // Methods to remove event listeners for gamification
+  offPointsUpdated(callback?: (data: any) => void) {
+    this.off("pointsUpdated", callback);
+  }
+
+  offAchievementUnlocked(callback?: (data: any) => void) {
+    this.off("achievementUnlocked", callback);
+  }
+
+  offLeaderboardUpdated(callback?: (data: any) => void) {
+    this.off("leaderboardUpdated", callback);
+  }
+
+  offChallengeUpdated(callback?: (data: any) => void) {
+    this.off("challengeUpdated", callback);
+  }
+
   // Utility methods
   isConnected(): boolean {
     return this.socket?.connected || false;
@@ -155,6 +197,27 @@ export function useSocket() {
       socketService.on("notification:new", (notification) => {
         addNotification(notification);
       });
+
+      // Gamification event listeners
+      socketService.onPointsUpdated((data) => {
+        // Handle real-time points update (e.g., update the points display)
+        console.log("Points Updated:", data);
+      });
+
+      socketService.onAchievementUnlocked((data) => {
+        // Handle real-time achievement unlock (e.g., update achievements tab)
+        console.log("Achievement Unlocked:", data);
+      });
+
+      socketService.onLeaderboardUpdated((data) => {
+        // Handle real-time leaderboard update (e.g., update leaderboard preview)
+        console.log("Leaderboard Updated:", data);
+      });
+
+      socketService.onChallengeUpdated((data) => {
+        // Handle real-time challenge update (e.g., update challenges banner)
+        console.log("Challenge Updated:", data);
+      });
     }
 
     // Cleanup on unmount
@@ -164,6 +227,12 @@ export function useSocket() {
         socketService.off("task:updated");
         socketService.off("task:deleted");
         socketService.off("notification:new");
+
+        // Remove gamification event listeners
+        socketService.offPointsUpdated();
+        socketService.offAchievementUnlocked();
+        socketService.offLeaderboardUpdated();
+        socketService.offChallengeUpdated();
       }
     };
   }, [addTask, updateTask, deleteTask, addNotification]);
@@ -176,5 +245,7 @@ export function useSocket() {
     leaveTaskRoom: socketService.leaveTaskRoom.bind(socketService),
     joinProjectRoom: socketService.joinProjectRoom.bind(socketService),
     leaveProjectRoom: socketService.leaveProjectRoom.bind(socketService),
+    joinGamificationRoom: socketService.joinGamificationRoom.bind(socketService),
+    leaveGamificationRoom: socketService.leaveGamificationRoom.bind(socketService),
   };
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -8,6 +8,12 @@ import { useProfile } from "@/contexts/profile-context";
 import { ProfilePicture } from "@/components/profile/profile-picture";
 import { PersonalInfoForm } from "@/components/profile/personal-info-form";
 import { PasswordChangeForm } from "@/components/profile/password-change-form";
+
+// Gamification Components
+import LeaderboardPreview from "@/components/gamification/LeaderboardPreview";
+import PointsDisplay from "@/components/gamification/PointsDisplay";
+import AchievementsTab from "@/components/gamification/AchievementsTab";
+import ChallengesBanner from "@/components/gamification/ChallengesBanner";
 
 interface UserProfile {
   id: string;
@@ -67,6 +73,9 @@ export default function ProfilePage() {
     );
   }
 
+  // Ensure session and session.user are not null before accessing userId
+  const userId = session?.user?.id;
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
@@ -89,6 +98,16 @@ export default function ProfilePage() {
 
             {/* Password Section */}
             <PasswordChangeForm />
+
+            {/* Gamification Sections */}
+            {userId && (
+              <>
+                <PointsDisplay userId={userId} /> {/* Show points */}
+                <LeaderboardPreview /> {/* Show leaderboard */}
+                <AchievementsTab userId={userId} /> {/* Show achievements */}
+                <ChallengesBanner userId={userId} /> {/* Show challenges banner */}
+              </>
+            )}
           </div>
         </div>
       </div>
