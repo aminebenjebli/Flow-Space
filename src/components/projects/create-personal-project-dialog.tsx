@@ -1,7 +1,8 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { X, Loader2 } from 'lucide-react';
+import { useState } from "react";
+import { X, Loader2 } from "lucide-react";
+import toast from "react-hot-toast";
 
 interface CreatePersonalProjectDialogProps {
   isOpen: boolean;
@@ -12,11 +13,11 @@ interface CreatePersonalProjectDialogProps {
 export default function CreatePersonalProjectDialog({
   isOpen,
   onClose,
-  onProjectCreated
+  onProjectCreated,
 }: CreatePersonalProjectDialogProps) {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [visibility, setVisibility] = useState<'PRIVATE' | 'PUBLIC'>('PRIVATE');
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [visibility, setVisibility] = useState<"PRIVATE" | "PUBLIC">("PRIVATE");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,10 +29,10 @@ export default function CreatePersonalProjectDialog({
     setError(null);
 
     try {
-      const response = await fetch('/api/projects', {
-        method: 'POST',
+      const response = await fetch("/api/projects", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           name: name.trim(),
@@ -41,27 +42,53 @@ export default function CreatePersonalProjectDialog({
         }),
       });
 
+      // Check if this is a queued response from service worker (offline mode)
+      const responseData = await response.json();
+
+      if (responseData.queued || responseData.success === false) {
+        console.log("Project creation queued (offline mode):", responseData);
+
+        // Reset form
+        setName("");
+        setDescription("");
+        setVisibility("PRIVATE");
+
+        // Show success message for offline
+        toast.success(
+          "Project created offline. It will sync when you're back online."
+        );
+
+        // Close dialog and refresh (even though project won't show until sync)
+        onClose();
+        // Don't call onProjectCreated() yet - wait for sync
+        return;
+      }
+
       if (!response.ok) {
         if (response.status === 401) {
           // Session expirée, recharger la page pour déclencher la redirection
           window.location.reload();
           return;
         }
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create project');
+        throw new Error(responseData.message || "Failed to create project");
       }
 
       // Reset form
-      setName('');
-      setDescription('');
-      setVisibility('PRIVATE');
-      
+      setName("");
+      setDescription("");
+      setVisibility("PRIVATE");
+
+      // Show success message
+      toast.success("Project created successfully!");
+
       // Notify parent component
       onProjectCreated();
       onClose();
     } catch (error) {
-      console.error('Error creating project:', error);
-      setError(error instanceof Error ? error.message : 'Failed to create project');
+      console.error("Error creating project:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to create project"
+      );
     } finally {
       setLoading(false);
     }
@@ -69,9 +96,9 @@ export default function CreatePersonalProjectDialog({
 
   const handleClose = () => {
     if (!loading) {
-      setName('');
-      setDescription('');
-      setVisibility('PRIVATE');
+      setName("");
+      setDescription("");
+      setVisibility("PRIVATE");
       setError(null);
       onClose();
     }
@@ -106,7 +133,10 @@ export default function CreatePersonalProjectDialog({
 
           {/* Project Name */}
           <div>
-            <label htmlFor="project-name" className="block text-sm font-medium text-card-foreground mb-2">
+            <label
+              htmlFor="project-name"
+              className="block text-sm font-medium text-card-foreground mb-2"
+            >
               Project Name*
             </label>
             <input
@@ -124,7 +154,10 @@ export default function CreatePersonalProjectDialog({
 
           {/* Description */}
           <div>
-            <label htmlFor="project-description" className="block text-sm font-medium text-card-foreground mb-2">
+            <label
+              htmlFor="project-description"
+              className="block text-sm font-medium text-card-foreground mb-2"
+            >
               Description
             </label>
             <textarea
@@ -149,8 +182,10 @@ export default function CreatePersonalProjectDialog({
                 <input
                   type="radio"
                   value="PRIVATE"
-                  checked={visibility === 'PRIVATE'}
-                  onChange={(e) => setVisibility(e.target.value as 'PRIVATE' | 'PUBLIC')}
+                  checked={visibility === "PRIVATE"}
+                  onChange={(e) =>
+                    setVisibility(e.target.value as "PRIVATE" | "PUBLIC")
+                  }
                   className="text-primary focus:ring-primary"
                   disabled={loading}
                 />
@@ -160,8 +195,10 @@ export default function CreatePersonalProjectDialog({
                 <input
                   type="radio"
                   value="PUBLIC"
-                  checked={visibility === 'PUBLIC'}
-                  onChange={(e) => setVisibility(e.target.value as 'PRIVATE' | 'PUBLIC')}
+                  checked={visibility === "PUBLIC"}
+                  onChange={(e) =>
+                    setVisibility(e.target.value as "PRIVATE" | "PUBLIC")
+                  }
                   className="text-primary focus:ring-primary"
                   disabled={loading}
                 />
@@ -188,7 +225,7 @@ export default function CreatePersonalProjectDialog({
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                'Create Project'
+                "Create Project"
               )}
             </button>
           </div>

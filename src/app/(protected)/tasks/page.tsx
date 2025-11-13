@@ -220,24 +220,24 @@ export default function TasksPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {/* Header */}
 
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-card-foreground mb-2">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-bold text-card-foreground mb-2">
               Task Management
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-sm sm:text-base text-muted-foreground">
               Organize and track your tasks efficiently
             </p>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
             <ViewSwitcher
               currentView={currentView}
               onViewChange={setCurrentView}
             />
-            <Button onClick={() => setShowCreateForm(true)}>
+            <Button onClick={() => setShowCreateForm(true)} className="whitespace-nowrap">
               <Plus className="h-4 w-4 mr-2" />
               New Task
             </Button>
@@ -245,6 +245,7 @@ export default function TasksPage() {
               variant="outline"
               onClick={fetchSuggestions}
               disabled={loadingSuggestions}
+              className="whitespace-nowrap"
             >
               Suggestions AI
             </Button>
@@ -253,52 +254,52 @@ export default function TasksPage() {
 
         {/* Stats Cards */}
         {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="flow-card p-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
+            <div className="flow-card p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Tasks</p>
-                  <p className="text-2xl font-bold text-card-foreground">
+                  <p className="text-xs sm:text-sm text-muted-foreground">Total Tasks</p>
+                  <p className="text-xl sm:text-2xl font-bold text-card-foreground">
                     {stats.total}
                   </p>
                 </div>
-                <CheckSquare className="h-8 w-8 text-primary" />
+                <CheckSquare className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
               </div>
             </div>
 
-            <div className="flow-card p-6">
+            <div className="flow-card p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">In Progress</p>
-                  <p className="text-2xl font-bold text-card-foreground">
+                  <p className="text-xs sm:text-sm text-muted-foreground">In Progress</p>
+                  <p className="text-xl sm:text-2xl font-bold text-card-foreground">
                     {stats.inProgress}
                   </p>
                 </div>
-                <Clock className="h-8 w-8 text-blue-600" />
+                <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
               </div>
             </div>
 
-            <div className="flow-card p-6">
+            <div className="flow-card p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Completed</p>
-                  <p className="text-2xl font-bold text-card-foreground">
+                  <p className="text-xs sm:text-sm text-muted-foreground">Completed</p>
+                  <p className="text-xl sm:text-2xl font-bold text-card-foreground">
                     {stats.done}
                   </p>
                 </div>
-                <TrendingUp className="h-8 w-8 text-green-600" />
+                <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
               </div>
             </div>
 
-            <div className="flow-card p-6">
+            <div className="flow-card p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Overdue</p>
-                  <p className="text-2xl font-bold text-card-foreground">
+                  <p className="text-xs sm:text-sm text-muted-foreground">Overdue</p>
+                  <p className="text-xl sm:text-2xl font-bold text-card-foreground">
                     {stats.overdue}
                   </p>
                 </div>
-                <AlertCircle className="h-8 w-8 text-red-600" />
+                <AlertCircle className="h-6 w-6 sm:h-8 sm:w-8 text-red-600" />
               </div>
             </div>
           </div>

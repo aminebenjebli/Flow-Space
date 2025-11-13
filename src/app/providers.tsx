@@ -10,6 +10,7 @@ import { TaskProvider } from "@/contexts/task-context";
 import SocketBridge from "@/components/realtime/SocketBridge";
 import { authOptions } from "@/lib/auth/auth";
 import { getServerSession } from "next-auth";
+import { OfflineProjectProvider } from "@/contexts/offline-project-context";
 
 interface ProvidersProps {
   readonly children: React.ReactNode;
@@ -47,8 +48,10 @@ export  function Providers({ children, userId  }: ProvidersProps) {
           <ProfileProvider>
             {userId && <SocketBridge/>} {/* Connecte-toi au WebSocket seulement si l'utilisateur est connecté */}
             <TaskProvider>
-              {children}
-              <ReactQueryDevtools initialIsOpen={false} />
+              <OfflineProjectProvider>
+                {children}
+                <ReactQueryDevtools initialIsOpen={false} />
+              </OfflineProjectProvider>
             </TaskProvider>
           </ProfileProvider>
         </ThemeProvider>

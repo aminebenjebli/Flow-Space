@@ -119,15 +119,21 @@ export function TaskProvider({
         });
       } catch (error: any) {
         console.error("Error fetching tasks:", error);
-        console.error("Error response:", error.response);
-        console.error("Error status:", error.response?.status);
-        console.error("Error data:", error.response?.data);
 
-        const errorMessage =
-          error.response?.data?.message ||
-          error.message ||
-          "Failed to fetch tasks";
-        toast.error(errorMessage);
+        // Only show toast for non-timeout errors
+        if (!error.message?.includes("timeout")) {
+          console.error("Error response:", error.response);
+          console.error("Error status:", error.response?.status);
+          console.error("Error data:", error.response?.data);
+
+          const errorMessage =
+            error.response?.data?.message ||
+            error.message ||
+            "Failed to fetch tasks";
+          toast.error(errorMessage);
+        } else {
+          console.warn("Tasks fetch timeout - retrying in background");
+        }
       } finally {
         setIsLoading(false);
       }
@@ -162,6 +168,13 @@ export function TaskProvider({
         console.log("Creating task with data:", taskData);
         const response = await api.tasks.create(taskData);
         console.log("Create response:", response);
+
+        // Check if this is a queued response from service worker (offline mode)
+        if ((response as any).queued || (response as any).success === false) {
+          console.log("Task queued for sync (offline mode):", response);
+          toast.success("Task created offline. Will sync when online.");
+          return null; // Don't add invalid data to state
+        }
 
         let newTask: Task;
         if (response.data) {
@@ -345,6 +358,26 @@ export function TaskProvider({
         const response = await api.tasks.update(id, data);
         console.log("Update response:", response);
 
+        // Check if this is a queued response from service worker (offline mode)
+        if ((response as any).queued || (response as any).success === false) {
+          console.log("Update queued for sync (offline mode):", response);
+
+          // Optimistically update in UI
+          setTasks((prev) =>
+            prev.map((task) => {
+              if (!task?.id) return task;
+              return task.id === id ? { ...task, ...data } : task;
+            })
+          );
+
+          if (currentTask?.id === id) {
+            setCurrentTask({ ...currentTask, ...data });
+          }
+
+          toast.success("Task updated offline. Will sync when online.");
+          return currentTask;
+        }
+
         let updatedTask: Task;
         if (response.data) {
           updatedTask = response.data as Task;
@@ -417,6 +450,15 @@ export function TaskProvider({
           console.log("[TaskContext] Local state updated, removed task:", id);
           return filtered;
         });
+        const response = await api.tasks.delete(id);
+
+        // Check if this is a queued response from service worker (offline mode)
+        if ((response as any)?.queued || (response as any)?.success === false) {
+          console.log("Delete queued for sync (offline mode):", response);
+        }
+
+        // Optimistically remove from UI
+        setTasks((prev) => prev.filter((task) => task.id !== id));
 
         if (currentTask?.id === id) {
           setCurrentTask(null);
@@ -439,6 +481,10 @@ export function TaskProvider({
         }
 
         toast.success("Task deleted successfully!");
+        const message = (response as any)?.queued
+          ? "Task deleted offline. Will sync when online."
+          : "Task deleted successfully!";
+        toast.success(message);
         return true;
       } catch (error: any) {
         console.error("Error deleting task:", error);
@@ -514,9 +560,16 @@ export function TaskProvider({
       console.log("Processed stats data:", statsData);
       setStats(statsData);
     } catch (error: any) {
-      console.error("Error fetching stats:", error);
-      console.error("Stats error response:", error.response);
-      toast.error("Failed to fetch task statistics");
+      // Only show toast for non-timeout errors
+      if (!error.message?.includes("timeout")) {
+        console.error("Error fetching stats:", error);
+        console.error("Stats error response:", error.response);
+        toast.error("Failed to fetch task statistics");
+      } else {
+        console.warn(
+          "Stats fetch timeout - this is expected if backend is slow"
+        );
+      }
     }
   }, []);
 

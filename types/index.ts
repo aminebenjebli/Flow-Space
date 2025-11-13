@@ -12,6 +12,7 @@ declare module "next-auth" {
       //lastName: string;
       role?: string;
       emailVerified?: boolean;
+      teamId?: string;  
     } & NextAuthUser;
   }
 
@@ -228,4 +229,18 @@ export interface FormState {
   isLoading: boolean;
   errors: ValidationError[];
   success: boolean;
+}
+export interface Challenge {
+  id: string;
+  name: string;
+  description: string;
+  pointsRewarded: number;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+  createdAt: string;
+  teamId: string;
+  participantCount?: number;
+  userJoined?: boolean;
+  userCompleted?: boolean;
 }
